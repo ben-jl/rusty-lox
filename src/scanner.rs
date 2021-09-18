@@ -2,21 +2,27 @@
 pub fn scan(source: &str) -> Vec<Result<Token, LexicalError>> {
     let mut tokens : Vec<Result<Token, LexicalError>> = Vec::new();
 
-    let mut line : i64 = 0;
+    let mut line : i64 = 1;
     let mut current_idx : usize = 0;
 
     while current_idx <= source.len() - 1 {
+
         match Token::next(&source[current_idx..], line) {
-            Ok((t, cidx)) => {
-                line = t.line;
+            Ok((t, cidx, l)) => {
+
+                if t.token_type == TokenType::Eof {
+                    break;
+                }
+                line = l;
                 current_idx += cidx as usize;
                 tokens.push(Ok(t));
             },
             Err(l) => {
+                current_idx += l.error_lexeme.len();
                 tokens.push(Err(l));
             }
         }
-        current_idx += 1;
+        //current_idx += 1;
     }
     tokens
 }
@@ -33,35 +39,35 @@ impl Token {
         Token { token_type, lexeme, line }
     }
 
-    fn next(source: &str, line: i64) -> Result<(Token, i64), LexicalError> {
+    fn next(source: &str, line: i64) -> Result<(Token, i64, i64), LexicalError> {
         let csiter = source.chars();
         let cs : Vec<char> = csiter.collect();
-        if cs.len() == 0 { Ok((Token::new(TokenType::Eof, "EOF".to_string(), line), 0)) }
+        if cs.len() == 0 { Ok((Token::new(TokenType::Eof, "EOF".to_string(), line), 0, line)) }
          else {
              match cs[0] {
-                 '\r'|' '|'\t' => Ok((Token::new(TokenType::WhiteSpace, slice_to_lexeme(source, 0, 1), line), 1)),
-                 '\n' => Ok((Token::new(TokenType::WhiteSpace, slice_to_lexeme(source, 0, 1), line+1), 1)),
-                 '(' => Ok((Token::new(TokenType::LeftParen, slice_to_lexeme(source,0,1), line), 1)),
-                 ')' => Ok((Token::new(TokenType::RightParen, slice_to_lexeme(source, 0, 1), line), 1)),
-                 '{' => Ok((Token::new(TokenType::LeftBrace, slice_to_lexeme(source,0,1), line), 1)),
-                 '}' => Ok((Token::new(TokenType::RightBrace, slice_to_lexeme(source, 0, 1), line), 1)),
-                 ',' => Ok((Token::new(TokenType::Comma, slice_to_lexeme(source,0,1), line), 1)),
-                 '.' => Ok((Token::new(TokenType::Dot, slice_to_lexeme(source, 0, 1), line), 1)),
-                 '-' => Ok((Token::new(TokenType::Minus, slice_to_lexeme(source,0,1), line), 1)),
-                 '+' => Ok((Token::new(TokenType::Plus, slice_to_lexeme(source, 0, 1), line), 1)),
-                 ';' => Ok((Token::new(TokenType::Semicolon, slice_to_lexeme(source,0,1), line), 1)),
-                 '*' => Ok((Token::new(TokenType::Star, slice_to_lexeme(source, 0, 1), line), 1)),
+                 '\r'|' '|'\t' => Ok((Token::new(TokenType::WhiteSpace, slice_to_lexeme(source, 0, 1), line), 1, line)),
+                 '\n' => Ok((Token::new(TokenType::WhiteSpace, slice_to_lexeme(source, 0, 1), line), 1, line + 1)),
+                 '(' => Ok((Token::new(TokenType::LeftParen, slice_to_lexeme(source,0,1), line), 1, line)),
+                 ')' => Ok((Token::new(TokenType::RightParen, slice_to_lexeme(source, 0, 1), line), 1, line)),
+                 '{' => Ok((Token::new(TokenType::LeftBrace, slice_to_lexeme(source,0,1), line), 1, line)),
+                 '}' => Ok((Token::new(TokenType::RightBrace, slice_to_lexeme(source, 0, 1), line), 1, line)),
+                 ',' => Ok((Token::new(TokenType::Comma, slice_to_lexeme(source,0,1), line), 1, line)),
+                 '.' => Ok((Token::new(TokenType::Dot, slice_to_lexeme(source, 0, 1), line), 1, line)),
+                 '-' => Ok((Token::new(TokenType::Minus, slice_to_lexeme(source,0,1), line), 1, line)),
+                 '+' => Ok((Token::new(TokenType::Plus, slice_to_lexeme(source, 0, 1), line), 1, line)),
+                 ';' => Ok((Token::new(TokenType::Semicolon, slice_to_lexeme(source,0,1), line), 1, line)),
+                 '*' => Ok((Token::new(TokenType::Star, slice_to_lexeme(source, 0, 1), line), 1, line)),
                  c => {
                     if cs.len() == 1 { return Err(LexicalError { line, error_lexeme: String::from("unexpected EOF"), message: String::from("uhoh")}); }
                     match (c, cs[1]) {
-                        ('!', '=') => Ok((Token::new(TokenType::BangEqual, slice_to_lexeme(source, 0, 2), line), 2)),
-                        ('!', _) => Ok((Token::new(TokenType::Bang, slice_to_lexeme(source, 0, 1), line), 1)),
-                        ('=', '=') => Ok((Token::new(TokenType::EqualEqual, slice_to_lexeme(source, 0, 2), line), 2)),
-                        ('=', _) => Ok((Token::new(TokenType::Equal, slice_to_lexeme(source, 0, 1), line), 1)),
-                        ('>', '=') => Ok((Token::new(TokenType::GreaterEqual, slice_to_lexeme(source, 0, 2), line), 2)),
-                        ('>', _) => Ok((Token::new(TokenType::Greater, slice_to_lexeme(source, 0, 1), line), 1)),
-                        ('<', '=') => Ok((Token::new(TokenType::LessEqual, slice_to_lexeme(source, 0, 2), line), 2)),
-                        ('<', _) => Ok((Token::new(TokenType::Less, slice_to_lexeme(source, 0, 1), line), 1)),
+                        ('!', '=') => Ok((Token::new(TokenType::BangEqual, slice_to_lexeme(source, 0, 2), line), 2, line)),
+                        ('!', _) => Ok((Token::new(TokenType::Bang, slice_to_lexeme(source, 0, 1), line), 1, line)),
+                        ('=', '=') => Ok((Token::new(TokenType::EqualEqual, slice_to_lexeme(source, 0, 2), line), 2, line)),
+                        ('=', _) => Ok((Token::new(TokenType::Equal, slice_to_lexeme(source, 0, 1), line), 1, line)),
+                        ('>', '=') => Ok((Token::new(TokenType::GreaterEqual, slice_to_lexeme(source, 0, 2), line), 2, line)),
+                        ('>', _) => Ok((Token::new(TokenType::Greater, slice_to_lexeme(source, 0, 1), line), 1, line)),
+                        ('<', '=') => Ok((Token::new(TokenType::LessEqual, slice_to_lexeme(source, 0, 2), line), 2, line)),
+                        ('<', _) => Ok((Token::new(TokenType::Less, slice_to_lexeme(source, 0, 1), line), 1, line)),
                         ('/', '/') => {
                             let mut eoc : usize = 0;
                             let mut line_count = line;
@@ -74,9 +80,9 @@ impl Token {
                                 eoc = ix;
                             }
 
-                            Ok((Token::new(TokenType::Comment(slice_to_lexeme(source, 0, eoc + 1)), slice_to_lexeme(source, 0, eoc + 1), line_count), eoc as i64))
+                            Ok((Token::new(TokenType::Comment(slice_to_lexeme(source, 0, eoc + 1)), slice_to_lexeme(source, 0, eoc + 1), line_count), eoc as i64, line_count))
                         },
-                        ('/', _) => Ok((Token::new(TokenType::Slash, slice_to_lexeme(source, 0, 1), line), 1)),
+                        ('/', _) => Ok((Token::new(TokenType::Slash, slice_to_lexeme(source, 0, 1), line), 1, line)),
                         ('"', _) => {
                             let mut idx: usize = 0;
                             let mut line_count = line;
@@ -89,7 +95,7 @@ impl Token {
                                 }
                             }
                             let string_contents = cs[1..idx+1].iter().collect();
-                            Ok((Token::new(TokenType::String(string_contents), slice_to_lexeme(source, 1, idx + 1), line_count), idx as i64 + 1))
+                            Ok((Token::new(TokenType::String(string_contents), slice_to_lexeme(source, 0, idx+2), line_count), idx as i64+2, line_count))
                         },
                         _ => {
                             let mut idx : usize = 0;
@@ -107,31 +113,31 @@ impl Token {
                             }
                             let chunk : String = cs[0..idx as usize].iter().collect();
                             match &chunk[..] {
-                                "and" => Ok((Token::new(TokenType::And, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "class" => Ok((Token::new(TokenType::Class, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "else" => Ok((Token::new(TokenType::Else, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "false" => Ok((Token::new(TokenType::False, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "fun" => Ok((Token::new(TokenType::Fun, slice_to_lexeme(source, 0, idx ), line_count), idx as i64)),
-                                "for" => Ok((Token::new(TokenType::For, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "if" => Ok((Token::new(TokenType::If, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "nil" => Ok((Token::new(TokenType::Nil, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "or" => Ok((Token::new(TokenType::Or, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "print" => Ok((Token::new(TokenType::Print, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "return" => Ok((Token::new(TokenType::Return, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "super" => Ok((Token::new(TokenType::Super, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "this" => Ok((Token::new(TokenType::This, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "true" => Ok((Token::new(TokenType::True, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "var" => Ok((Token::new(TokenType::Var, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
-                                "while" => Ok((Token::new(TokenType::While, slice_to_lexeme(source, 0, idx), line_count), idx as i64)),
+                                "and" => Ok((Token::new(TokenType::And, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "class" => Ok((Token::new(TokenType::Class, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "else" => Ok((Token::new(TokenType::Else, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "false" => Ok((Token::new(TokenType::False, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "fun" => Ok((Token::new(TokenType::Fun, slice_to_lexeme(source, 0, idx ), line_count), idx as i64, line_count)),
+                                "for" => Ok((Token::new(TokenType::For, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "if" => Ok((Token::new(TokenType::If, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "nil" => Ok((Token::new(TokenType::Nil, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "or" => Ok((Token::new(TokenType::Or, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "print" => Ok((Token::new(TokenType::Print, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "return" => Ok((Token::new(TokenType::Return, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "super" => Ok((Token::new(TokenType::Super, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "this" => Ok((Token::new(TokenType::This, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "true" => Ok((Token::new(TokenType::True, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "var" => Ok((Token::new(TokenType::Var, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
+                                "while" => Ok((Token::new(TokenType::While, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
                                 other => {
                                     if other.contains('.') {
                                         let num: f64 = other.parse().unwrap();
-                                        println!("{:?}", other);
-                                        return Ok((Token::new(TokenType::Number(num), slice_to_lexeme(source, 0, other.len()), line_count), idx as i64 + 1))
+
+                                        return Ok((Token::new(TokenType::Number(num), slice_to_lexeme(source, 0, other.len()), line_count), idx as i64, line_count))
                                     } else {
                                         let chars :Vec<char> = other.chars().collect();
                                         if chars[0].is_alphabetic() && chars.iter().all(|c| c.is_alphanumeric() || *c == '_') {
-                                            return Ok((Token::new(TokenType::Identifier(other.to_string()), slice_to_lexeme(source, 0, chars.len()), line_count), idx as i64))
+                                            return Ok((Token::new(TokenType::Identifier(other.to_string()), slice_to_lexeme(source, 0, chars.len()), line_count), idx as i64, line_count))
 
                                         }else {
                                             println!("{:?}", other);
@@ -194,7 +200,7 @@ mod test {
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
-            let (t, cs) = nxt.unwrap();
+            let (t, cs, _) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::LeftParen);
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "(");
@@ -209,7 +215,7 @@ mod test {
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
-            let (t, cs) = nxt.unwrap();
+            let (t, cs, _) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::BangEqual);
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "!=");
@@ -224,7 +230,7 @@ mod test {
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
-            let (t, cs) = nxt.unwrap();
+            let (t, cs, _) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::Bang);
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "!");
@@ -239,7 +245,7 @@ mod test {
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
-            let (t, cs) = nxt.unwrap();
+            let (t, cs, _) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::Comment(String::from("//im a comment")));
             assert_eq!(t.line, 2);
             assert_eq!(t.lexeme, "//im a comment");
@@ -254,7 +260,7 @@ mod test {
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
-            let (t, cs) = nxt.unwrap();
+            let (t, cs, _) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::And);
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "and");
@@ -270,11 +276,11 @@ mod test {
             panic!("Expected some, got error {:?}", nxt); 
         }
         else {
-            let (t,cs) = nxt.unwrap();
+            let (t,cs, _) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::String("im a string".to_string()));
             assert_eq!(t.line, 1);
-            assert_eq!(t.lexeme, "im a string");
-            assert_eq!(cs, 12);
+            assert_eq!(t.lexeme, "\"im a string\"");
+            assert_eq!(cs, 13);
         }
     }
 
@@ -285,11 +291,11 @@ mod test {
         if nxt.is_err() {
             panic!("Expected some, got error {:?}", nxt);
         } else {
-            let (t,cs) = nxt.unwrap();
+            let (t,cs,_) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::Number(1.345));
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "1.345");
-            assert_eq!(cs, 6);
+            assert_eq!(cs, 5);
         }
     }
 
@@ -300,7 +306,7 @@ mod test {
         if nxt.is_err() {
             panic!("Expected some, got error {:?}", nxt);
         } else {
-            let (t,cs) = nxt.unwrap();
+            let (t,cs, _) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::Identifier("identwhat".to_string()));
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "identwhat");
@@ -315,7 +321,7 @@ mod test {
         if nxt.is_err() {
             panic!("Expected some, got error {:?}", nxt);
         } else {
-            let (t,cs) = nxt.unwrap();
+            let (t,cs,_) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::Comment("// see ya".to_string()));
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "// see ya");
@@ -327,7 +333,9 @@ mod test {
     pub fn test_gets_full_identifier_after_newline() {
         let source = "\nlater";
         let vals = scan(&source);
-        println!("{:?}", vals);
-        assert_eq!(false, true);
+        let snd = vals[1].as_ref();
+        let sndt = snd.unwrap();
+
+        assert_eq!(TokenType::Identifier("later".to_string()), sndt.token_type);
     }
 }

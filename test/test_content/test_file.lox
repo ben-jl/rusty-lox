@@ -1,5 +1,5 @@
 class Testing {
-    "hello there", seeya
+    "hello there" , seeya
 }
 // bye
 later test_token_next_works_one_or_two_chars_case_one
