@@ -1,6 +1,9 @@
 use std::io::Write;
 use std::io::BufRead;
 
+mod scanner;
+
+
 fn main() -> std::io::Result<()> {
     let args : Vec<String> = std::env::args().collect();
     let stdout = std::io::stdout();
