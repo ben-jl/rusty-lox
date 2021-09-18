@@ -15,14 +15,21 @@ pub fn scan(source: &str) -> Vec<Result<Token, LexicalError>> {
                 }
                 line = l;
                 current_idx += cidx as usize;
-                tokens.push(Ok(t));
+                if t.token_type != TokenType::WhiteSpace {
+                    if let TokenType::Comment(_) = t.token_type {
+                        continue;
+                    } else {
+                        tokens.push(Ok(t));
+
+                    }
+
+                }
             },
             Err(l) => {
                 current_idx += l.error_lexeme.len();
                 tokens.push(Err(l));
             }
         }
-        //current_idx += 1;
     }
     tokens
 }
@@ -74,13 +81,12 @@ impl Token {
                             for (ix, nc) in cs[0..].iter().enumerate() {
                                 
                                 if *nc == '\n' {
-                                    line_count += 1;
                                     break;
                                 }
                                 eoc = ix;
                             }
 
-                            Ok((Token::new(TokenType::Comment(slice_to_lexeme(source, 0, eoc + 1)), slice_to_lexeme(source, 0, eoc + 1), line_count), eoc as i64, line_count))
+                            Ok((Token::new(TokenType::Comment(slice_to_lexeme(source, 0, eoc + 1)), slice_to_lexeme(source, 0, eoc + 1), line_count), eoc as i64 + 1, line_count))
                         },
                         ('/', _) => Ok((Token::new(TokenType::Slash, slice_to_lexeme(source, 0, 1), line), 1, line)),
                         ('"', _) => {
@@ -101,9 +107,7 @@ impl Token {
                             let mut idx : usize = 0;
                             let mut line_count = line;
                             for (_, nc) in cs[0..].iter().enumerate() {
-                                //idx = ix;
                                 if *nc == '\n' {
-                                    line_count += 1;
                                     break;
                                 } else if *nc == '\r' || *nc == ' ' || *nc == '\t' {
                                     break;
@@ -247,9 +251,9 @@ mod test {
         else {
             let (t, cs, _) = nxt.unwrap();
             assert_eq!(t.token_type, TokenType::Comment(String::from("//im a comment")));
-            assert_eq!(t.line, 2);
+            assert_eq!(t.line,1);
             assert_eq!(t.lexeme, "//im a comment");
-            assert_eq!(cs, 13);
+            assert_eq!(cs, 14);
         }
     }
 
@@ -325,7 +329,7 @@ mod test {
             assert_eq!(t.token_type, TokenType::Comment("// see ya".to_string()));
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "// see ya");
-            assert_eq!(cs, 8);
+            assert_eq!(cs, 9);
         }
     }
 
@@ -333,7 +337,7 @@ mod test {
     pub fn test_gets_full_identifier_after_newline() {
         let source = "\nlater";
         let vals = scan(&source);
-        let snd = vals[1].as_ref();
+        let snd = vals[0].as_ref();
         let sndt = snd.unwrap();
 
         assert_eq!(TokenType::Identifier("later".to_string()), sndt.token_type);
