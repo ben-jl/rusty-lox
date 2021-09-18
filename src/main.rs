@@ -13,8 +13,11 @@ fn main() -> std::io::Result<()> {
     if args.len() == 2 {
         let source_file = &args[1];
         let source = std::fs::read_to_string(std::path::Path::new(source_file))?;
-        
-        write_out(&stdout, &source)?;
+        let toks = scanner::scan(&source);
+        for r in toks {
+            let ftok = format!("{:?}\n", r);
+            write_out(&stdout, &ftok)?;
+        }
         write_out(&stdout, "\n")?;
         
     } else {    
@@ -27,7 +30,13 @@ fn main() -> std::io::Result<()> {
                 write_out(&stdout, "ok...see ya!\n")?;
                 should_exit = true;
             } else {
-                write_out(&stdout, &next)?;  
+                let results = scanner::scan(&next);
+                for r in results {
+                    let ftok = format!("{:?}\n", r);
+                    write_out(&stdout, &ftok)?;
+                }
+                write_out(&stdout, "OK.")?;  
+                write_out(&stdout, "\n")?;
             }
         }
     }
