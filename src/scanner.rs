@@ -4,8 +4,8 @@ use std::fmt::Display;
 pub enum TokenType {
     LeftParen, RightParen, LeftBrace, RightBrace,
     Comma, This, True, Var, While,
-    Dot, Print, Return, Super,
-    Minus, For, If, Nil, Or, 
+    Dot, Print, Return, Super,Comment,
+    Minus, For, If, Nil, Or, WhiteSpace,
     Plus, And, Class, Else, False, Fun,
     Semicolon, Identifier, String, Number,
     Slash, Greater, GreaterEqual, Less, LessEqual,
@@ -44,7 +44,7 @@ impl Scanner {
 
         while !self.is_at_end(current) {
             start = current;
-            let tok_type = self.scan_token(start, &mut current)?;
+            let tok_type = self.scan_token(start, &mut current, &mut line)?;
             
             self.tokens.push(Token::new(tok_type, self.source[start as usize..(current) as usize].to_string(), line));
             
@@ -59,26 +59,81 @@ impl Scanner {
         current >= self.source.len() as i64
     }
 
-    fn scan_token(&self,start: i64, current: &mut i64) -> std::io::Result<TokenType> {
+    fn scan_token(&self,start: i64, current: &mut i64, line: &mut i64) -> std::io::Result<TokenType> {
         *current += 1;
         let tok = match &self.source[start as usize..*current as usize] {
-            
-            
-                    "(" => TokenType::LeftParen,
-                    ")" => TokenType::RightParen,
-                    "}" => TokenType::RightBrace,
-                    "{" => TokenType::LeftBrace,
-                    "," => TokenType::Comma,
-                    "." => TokenType::Dot,
-                    "-" => TokenType::Minus,
-                    "+" => TokenType::Plus,
-                    ";" => TokenType::Semicolon,
-                    "*" => TokenType::Star,
-                    _ => panic!("{:?}, {}, {}", &self.source[start as usize..*current as usize], start, current)
-            
-            
-            
-            
+
+            "(" => TokenType::LeftParen,
+            ")" => TokenType::RightParen,
+            "}" => TokenType::RightBrace,
+            "{" => TokenType::LeftBrace,
+            "," => TokenType::Comma,
+            "." => TokenType::Dot,
+            "-" => TokenType::Minus,
+            "+" => TokenType::Plus,
+            ";" => TokenType::Semicolon,
+            "*" => TokenType::Star,
+            "!" => {
+                match &self.source[*current as usize..*current as usize + 1] {
+                    "=" => { 
+                        *current += 1;
+                        TokenType::BangEqual
+                    },
+                    _ => TokenType::Bang
+                }
+            },
+            "=" => {
+                match &self.source[*current as usize..*current as usize + 1] {
+                    "=" => {
+                        *current += 1;
+                        TokenType::EqualEqual
+                    }, 
+                    _ => TokenType::Equal
+                }
+            },
+            ">" => {
+                match &self.source[*current as usize..*current as usize + 1] {
+                    "=" => {
+                        *current += 1;
+                        TokenType::GreaterEqual
+                    },
+                    _ => TokenType::Greater
+                }
+            },
+            "<" => {
+                match &self.source[*current as usize..*current as usize + 1] {
+                    "=" => {
+                        *current += 1;
+                        TokenType::LessEqual
+                    },
+                    _ => TokenType::Less
+                }
+            },
+            "/" => {
+                if &self.source[*current as usize..*current as usize + 1] == "/" {
+                    while !self.is_at_end(*current) && &self.source[*current as usize..*current as usize + 1] != "\n" {
+                        *current += 1;
+                        
+                    }
+                    *line += 1;
+                    *current += 1;
+                    TokenType::Comment
+                } else {
+                    TokenType::Slash
+                }
+            },
+            " " => TokenType::WhiteSpace,
+            "\n" => { *line+=1; TokenType::WhiteSpace},
+            "\r" => TokenType::WhiteSpace,
+            "\t" => TokenType::WhiteSpace,
+            "\"" => {
+                while !self.is_at_end(*current) && &self.source[*current as usize..*current as usize + 1] != "\"" {
+                    *current += 1;
+                }
+                *current += 1;
+                TokenType::String
+            },
+            _ => panic!("Unexpected sequence {:?}, {:?}", &self.source[start as usize..*current as usize], *current)
         };
         Ok(tok)
     }
