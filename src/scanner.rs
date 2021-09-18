@@ -54,6 +54,20 @@ impl Token {
                             Ok((Token::new(TokenType::Comment(slice_to_lexeme(source, 0, eoc)), slice_to_lexeme(source, 0, eoc), line_count), eoc as i64))
                         },
                         ('/', _) => Ok((Token::new(TokenType::Slash, slice_to_lexeme(source, 0, 1), line), 1)),
+                        ('"', _) => {
+                            let mut idx: usize = 0;
+                            let mut line_count = line;
+                            for (ix, nc) in cs[1..].iter().enumerate() {
+                                idx = ix;
+                                if *nc == '"' {
+                                    break;
+                                } else if *nc == '\n' {
+                                    line_count += 1;
+                                }
+                            }
+                            let string_contents = cs[1..idx+1].iter().collect();
+                            Ok((Token::new(TokenType::String(string_contents), slice_to_lexeme(source, 1, idx + 1), line_count), idx as i64 + 1))
+                        },
                         _ => {
                             let mut idx : usize = 0;
                             let mut line_count = line;
@@ -85,27 +99,26 @@ impl Token {
                                 "var" => Ok((Token::new(TokenType::Var, slice_to_lexeme(source, 0, idx + 1), line_count), idx as i64 + 1)),
                                 "while" => Ok((Token::new(TokenType::While, slice_to_lexeme(source, 0, idx + 1), line_count), idx as i64 + 1)),
                                 other => {
-                                    if other.starts_with('"') {
-                                        unimplemented!()
-                                    } else if false {
-                                        unimplemented!()
+                                    if other.contains('.') {
+                                        let num: f64 = other.parse().unwrap();
+                                        return Ok((Token::new(TokenType::Number(num), slice_to_lexeme(source, 0, idx + 1), line_count), idx as i64 + 1))
                                     } else {
-                                        unimplemented!();
+                                        let chars :Vec<char> = other.chars().collect();
+                                        if chars[0].is_alphabetic() && chars.iter().all(|c| c.is_alphanumeric() || *c == '_') {
+                                            return Ok((Token::new(TokenType::Identifier(other.to_string()), slice_to_lexeme(source, 0, idx + 1), line_count), idx as i64 + 1))
+
+                                        }else {
+                                            return Err(LexicalError { line, error_lexeme: String::from("bad"), message: String::from("sad")})
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-
                  },
-                //  _ => Err(LexicalError { line, error_lexeme: String::from("bad"), message: String::from("sad")})
-             }
-
-             
+             }        
          }
     }
-
-    
 }
 
 fn slice_to_lexeme(source: &str, start: usize, end: usize) -> String {
@@ -219,6 +232,52 @@ mod test {
             assert_eq!(t.line, 1);
             assert_eq!(t.lexeme, "and");
             assert_eq!(cs, 3);
+        }
+    }
+
+    #[test]
+    pub fn test_creates_string_token_correctly_in_next() {
+        let source = "\"im a string\"";
+        let nxt = Token::next(source, 1);
+        if nxt.is_err() {
+            panic!("Expected some, got error {:?}", nxt); 
+        }
+        else {
+            let (t,cs) = nxt.unwrap();
+            assert_eq!(t.token_type, TokenType::String("im a string".to_string()));
+            assert_eq!(t.line, 1);
+            assert_eq!(t.lexeme, "im a string");
+            assert_eq!(cs, 12);
+        }
+    }
+
+    #[test]
+    pub fn test_creates_number_token_correctly_in_next() {
+        let source = "1.345";
+        let nxt = Token::next(source, 1);
+        if nxt.is_err() {
+            panic!("Expected some, got error {:?}", nxt);
+        } else {
+            let (t,cs) = nxt.unwrap();
+            assert_eq!(t.token_type, TokenType::Number(1.345));
+            assert_eq!(t.line, 1);
+            assert_eq!(t.lexeme, "1.345");
+            assert_eq!(cs, 5);
+        }
+    }
+
+    #[test]
+    pub fn test_creates_identifier_token_correctly_in_next() {
+        let source = "identwhat";
+        let nxt = Token::next(source, 1);
+        if nxt.is_err() {
+            panic!("Expected some, got error {:?}", nxt);
+        } else {
+            let (t,cs) = nxt.unwrap();
+            assert_eq!(t.token_type, TokenType::Identifier("identwhat".to_string()));
+            assert_eq!(t.line, 1);
+            assert_eq!(t.lexeme, "identwhat");
+            assert_eq!(cs, 9);
         }
     }
 }
