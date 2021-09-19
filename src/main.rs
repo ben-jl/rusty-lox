@@ -5,6 +5,7 @@ pub mod rlox_core;
 use rlox_core::scan;
 
 fn main() -> std::io::Result<()> {
+    
     let args : Vec<String> = std::env::args().collect();
     let stdout = std::io::stdout();
     let stdin = std::io::stdin();
@@ -14,10 +15,20 @@ fn main() -> std::io::Result<()> {
         let source_file = &args[1];
         let source = std::fs::read_to_string(std::path::Path::new(source_file))?;
         let toks = scan(&source);
+        let mut tokens = Vec::new();
         for r in toks {
+            tokens.push(r.clone().unwrap().clone());
             let ftok = format!("{:?}\n", r);
             write_out(&stdout, &ftok)?;
         }
+        let r = rlox_core::parse_expr(&tokens);
+        if let Ok(e) = r {
+            let r = rlox_core::print_ast_grouped(&e);
+            write_out(&stdout, &r)?;
+        } else {
+            write_out(&stdout, &format!("{:?}\n", r))?;
+        }
+                
         write_out(&stdout, "\n")?;
         
     } else {    
@@ -31,10 +42,16 @@ fn main() -> std::io::Result<()> {
                 should_exit = true;
             } else {
                 let results = scan(&next);
+                let mut tokens = Vec::new();
                 for r in results {
+                    tokens.push(r.clone().unwrap().clone());
                     let ftok = format!("{:?}\n", r);
                     write_out(&stdout, &ftok)?;
                 }
+
+                let e = rlox_core::parse_expr(&tokens).unwrap();
+                let r = rlox_core::print_ast_grouped(&e);
+                write_out(&stdout, &r)?;
                 write_out(&stdout, "OK.")?;  
                 write_out(&stdout, "\n")?;
             }
