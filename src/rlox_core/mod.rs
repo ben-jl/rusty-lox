@@ -1,5 +1,6 @@
 mod scanner;
 mod printer;
+mod parser;
 pub mod shared_models;
 
 pub use scanner::scan;
