@@ -19,17 +19,22 @@ fn main() -> std::io::Result<()> {
         for r in toks {
             tokens.push(r.clone().unwrap().clone());
             let ftok = format!("{:?}\n", r);
-            write_out(&stdout, &ftok)?;
+            println!("{:?}", ftok);
+            //write_out(&stdout, &ftok)?;
         }
         let r = rlox_core::parse_expr(&tokens);
         if let Ok(e) = r {
             let r = rlox_core::print_ast_grouped(&e);
-            write_out(&stdout, &r)?;
+            //write_out(&stdout, &r)?;
+            println!("{:?}", &r);
+            rlox_core::run(e)?;
+            
         } else {
-            write_out(&stdout, &format!("{:?}\n", r))?;
+            r.unwrap();
+            //write_out(&stdout, &format!("{:?}\n", r))?;
         }
                 
-        write_out(&stdout, "\n")?;
+        //write_out(&stdout, "\n")?;
         
     } else {    
         let mut should_exit = false;
@@ -53,6 +58,7 @@ fn main() -> std::io::Result<()> {
                 let r = rlox_core::print_ast_grouped(&e);
                 write_out(&stdout, &r)?;
                 write_out(&stdout, "\n")?;
+                rlox_core::run(e)?;
                 write_out(&stdout, "OK.")?;  
                 write_out(&stdout, "\n")?;
             }

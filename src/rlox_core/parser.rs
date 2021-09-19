@@ -93,10 +93,10 @@ fn primary(tokens: &[Token]) -> Result<(Expr, usize), ParserError> {
         TokenType::Number(_) | TokenType::String(_) | TokenType::True | TokenType::False | TokenType::Nil => Ok((Expr::new_literal_expr(Rc::from(tokens[0].clone())), 1)),
         TokenType::LeftParen => {
             let (interior, consumed) = expression(&tokens[1..])?;
-            if *tokens[consumed+1].token_type() == TokenType::RightParen {
+            if *tokens[consumed + 2].token_type() == TokenType::RightParen {
                 Ok((Expr::new_grouping_expr(Rc::from(interior), Rc::from(tokens[consumed].clone())), consumed))
             } else {
-                Err(ParserError { message: "Expected close paren".to_string() })
+                Err(ParserError { message: format!("{:?} {:?}", tokens, consumed) })
             }
             
         },
@@ -126,6 +126,5 @@ mod test {
 
         let pres = super::parse_expr(&toks).unwrap();
         println!("{:?}", pres);
-        assert_eq!(false,true);
     }
 }
