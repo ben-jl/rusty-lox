@@ -1,8 +1,8 @@
 use std::io::Write;
 use std::io::BufRead;
 
-mod scanner;
-
+pub mod rlox_core;
+use rlox_core::scan;
 
 fn main() -> std::io::Result<()> {
     let args : Vec<String> = std::env::args().collect();
@@ -13,7 +13,7 @@ fn main() -> std::io::Result<()> {
     if args.len() == 2 {
         let source_file = &args[1];
         let source = std::fs::read_to_string(std::path::Path::new(source_file))?;
-        let toks = scanner::scan(&source);
+        let toks = scan(&source);
         for r in toks {
             let ftok = format!("{:?}\n", r);
             write_out(&stdout, &ftok)?;
@@ -30,7 +30,7 @@ fn main() -> std::io::Result<()> {
                 write_out(&stdout, "ok...see ya!\n")?;
                 should_exit = true;
             } else {
-                let results = scanner::scan(&next);
+                let results = scan(&next);
                 for r in results {
                     let ftok = format!("{:?}\n", r);
                     write_out(&stdout, &ftok)?;
