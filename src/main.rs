@@ -1,68 +1,34 @@
 use std::io::Write;
 use std::io::BufRead;
-
+use std::vec::{Vec, IntoIter};
 pub mod rlox_core;
 use rlox_core::scan;
+use rlox_core::parse_expr;
+use rlox_core::print_ast_grouped;
 
 fn main() -> std::io::Result<()> {
     
     let args : Vec<String> = std::env::args().collect();
-    let stdout = std::io::stdout();
     let stdin = std::io::stdin();
-
-
     if args.len() == 2 {
-        let source_file = &args[1];
-        let source = std::fs::read_to_string(std::path::Path::new(source_file))?;
-        let toks = scan(&source);
-        let mut tokens = Vec::new();
-        for r in toks {
-            tokens.push(r.clone().unwrap().clone());
-            let ftok = format!("{:?}\n", r);
-            println!("{:?}", ftok);
-            //write_out(&stdout, &ftok)?;
-        }
-        let r = rlox_core::parse_expr(&tokens);
-        if let Ok(e) = r {
-            let r = rlox_core::print_ast_grouped(&e);
-            //write_out(&stdout, &r)?;
-            println!("{:?}", &r);
-            rlox_core::run(e)?;
+        let source = std::fs::read_to_string(std::path::Path::new(&args[1]))?;
+        run_source_fragment(&source)?;
+
+    } else {
+        loop {
             
-        } else {
-            r.unwrap();
-            //write_out(&stdout, &format!("{:?}\n", r))?;
-        }
-                
-        //write_out(&stdout, "\n")?;
-        
-    } else {    
-        let mut should_exit = false;
-
-        while !should_exit {
-            write_out(&stdout, "rlox] ")?;
-            let next = read_line_from_stdin(&stdin)?;
-            if next == "quit" {
-                write_out(&stdout, "ok...see ya!\n")?;
-                should_exit = true;
+            print!("rlox] ");
+            std::io::stdout().flush()?;
+            let input = read_line_from_stdin(&stdin)?;
+            if input.trim() == "quit" {
+                println!("Exiting...\n");
+                break;
             } else {
-                let results = scan(&next);
-                let mut tokens = Vec::new();
-                for r in results {
-                    tokens.push(r.clone().unwrap().clone());
-                    let ftok = format!("{:?}\n", r);
-                    write_out(&stdout, &ftok)?;
-                }
-
-                let e = rlox_core::parse_expr(&tokens).unwrap();
-                let r = rlox_core::print_ast_grouped(&e);
-                write_out(&stdout, &r)?;
-                write_out(&stdout, "\n")?;
-                rlox_core::run(e)?;
-                write_out(&stdout, "OK.")?;  
-                write_out(&stdout, "\n")?;
+                run_source_fragment(input.trim())?;
             }
         }
+
+        
     }
 
     Ok(())
@@ -78,10 +44,35 @@ fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
     Ok(input.to_string())
 }
 
-fn write_out(stdout: &std::io::Stdout, content: &str) -> std::io::Result<()> {
-    let bytes = content.as_bytes();
-    let mut lock = stdout.lock();
-    lock.write(bytes)?;
-    lock.flush()?;
-    Ok(())
+
+fn run_source_fragment(source: &str) -> std::io::Result<()> {
+    let scanned = scan(&source);
+
+        let mut has_lex_error = false;
+        let mut tokens = Vec::new();
+        for s in scanned.iter() {
+            if let Ok(sp) = s {
+                println!("{:?}", &sp);
+                tokens.push(sp.clone());
+                
+            } else {
+                has_lex_error = true;
+                println!("{:?}", s);
+            }
+        }
+
+        print!("\n");        
+        if !has_lex_error {
+            let parsed = parse_expr(&tokens[..]);
+            let mut has_parse_err = false;
+            if let Ok(expr) = parsed {
+                println!(r#"{}"#, print_ast_grouped(&expr));
+            } else {
+                has_parse_err = true;
+                println!("{:?}", parsed);
+            }
+            
+        }
+
+        Ok(())
 }

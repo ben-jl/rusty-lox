@@ -1,4 +1,4 @@
-use crate::rlox_core::shared_models::{LiteralType, Expr, ExprType};
+use crate::rlox_core::shared_models::{LiteralType, Expr, ExprType, TokenType};
 
 pub fn print_ast_grouped(root_expr: &Expr) -> String {
     let (_, expr_type) = (root_expr.token(), root_expr.expr_type());
@@ -6,8 +6,8 @@ pub fn print_ast_grouped(root_expr: &Expr) -> String {
     let res = match expr_type {
         ExprType::LiteralExpr(t, v) => match t {
             LiteralType::NilLiteral => format!("nil"),
-            LiteralType::NumberLiteral | LiteralType::IdentifierLiteral => format!("{}", v.lexeme()),
-            LiteralType::StringLiteral => format!("\"{}\"", v.lexeme())
+            LiteralType::NumberLiteral | LiteralType::IdentifierLiteral => format!(r#"{}"#, v.lexeme()),
+            LiteralType::StringLiteral => if let TokenType::String(s) = v.clone().token_type() { format!(r#""{}""#, s.to_string()) } else { panic!("bad") }
         },
         ExprType::BinaryExpr(l,o,r) => {
             let mut start = String::new();
@@ -16,7 +16,7 @@ pub fn print_ast_grouped(root_expr: &Expr) -> String {
             let lstr = print_ast_grouped(&le);
             start.push_str(&lstr);
             start.push(' ');
-            start.push_str(&format!("{:?}", o));
+            start.push_str(&format!(r#"{:?}"#, o));
             start.push(' ');
             let re = r.clone();
             let rstr = print_ast_grouped(&re);
@@ -37,7 +37,7 @@ pub fn print_ast_grouped(root_expr: &Expr) -> String {
         ExprType::UnaryExpr(o,e) => {
             let mut start = String::new();
             start.push('(');
-            start.push_str(&format!("{:?}", o));
+            start.push_str(&format!(r#"{:?}"#, o));
             start.push(' ');
             let oe = e.clone();
             let oestr = print_ast_grouped(&oe);
