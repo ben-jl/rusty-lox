@@ -88,14 +88,14 @@ mod test {
 
     #[test]
     fn it_prints_binary_expr_correctly() {
-        let lit1 = super::Expr::new_literal_expr(std::rc::Rc::from(Token::new(TokenType::String("hello".to_string()), "hello_there".to_string(), 1)));
-        let lit2 = super::Expr::new_literal_expr(std::rc::Rc::from(Token::new(TokenType::String("bye".to_string()), "bye_now".to_string(), 2)));
+        let lit1 = super::Expr::new_literal_expr(std::rc::Rc::from(Token::new(TokenType::String("hello".to_string()), "hello".to_string(), 1)));
+        let lit2 = super::Expr::new_literal_expr(std::rc::Rc::from(Token::new(TokenType::String("bye".to_string()), "bye".to_string(), 2)));
 
         let e = super::Expr::new_binary_expr(std::rc::Rc::from(lit1), std::rc::Rc::from(Token::new(TokenType::EqualEqual, "==".to_string(), 3)), std::rc::Rc::from(lit2));
 
         let res = super::print_ast_grouped(&e);
 
-        assert_eq!("(\"hello_there\" EqualEqual \"bye_now\")", res);
+        assert_eq!("(\"hello\" EqualEqual \"bye\")", res);
     }
 
     #[test]

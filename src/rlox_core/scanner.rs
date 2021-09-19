@@ -98,7 +98,7 @@ fn next(source: &str, line: i64) -> Result<(Token, i64, i64), LexicalError> {
                         for (_, nc) in cs[0..].iter().enumerate() {
                             if *nc == '\n' {
                                 break;
-                            } else if *nc == '\r' || *nc == ' ' || *nc == '\t' {
+                            } else if *nc == '\r' || *nc == ' ' || *nc == '\t' || *nc == ')' {
                                 break;
                             } else {
                                 idx += 1;
@@ -124,6 +124,7 @@ fn next(source: &str, line: i64) -> Result<(Token, i64, i64), LexicalError> {
                             "while" => Ok((Token::new(TokenType::While, slice_to_lexeme(source, 0, idx), line_count), idx as i64, line_count)),
                             other => {
                                 if other.contains('.') {
+                                    println!("{:?}", other);
                                     let num: f64 = other.parse().unwrap();
 
                                     return Ok((Token::new(TokenType::Number(num), slice_to_lexeme(source, 0, other.len()), line_count), idx as i64, line_count))
@@ -151,7 +152,13 @@ fn slice_to_lexeme(source: &str, start: usize, end: usize) -> String {
 }
 
 mod test {
-    
+    #[test]
+    pub fn test_left_right_paren_dont_need_whitespace_sep() {
+        let source = "(1.1 == 2.2)";
+        let nxt = super::scan(source);
+        let foo : Vec<&Result<super::Token, super::LexicalError>> = nxt.iter().filter(|e| e.is_err()).collect();
+        assert_eq!(0, foo.len());
+    }
     
 
     #[test]
