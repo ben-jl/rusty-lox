@@ -26,7 +26,7 @@ fn equality(tokens: &[Token]) -> Result<(Expr, usize), ParserError> {
 
 fn comparison(tokens: &[Token]) -> Result<(Expr, usize), ParserError> {
     let (mut ce, consumed) = term(tokens)?;
-    let mut should_loop = match *tokens[consumed].token_type() {
+    let mut should_loop = tokens.len() > consumed && match *tokens[consumed].token_type() {
         TokenType::GreaterEqual|TokenType::Greater|TokenType::Less|TokenType::LessEqual => true,
         _ => false
     };

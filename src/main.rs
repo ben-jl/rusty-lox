@@ -52,6 +52,7 @@ fn main() -> std::io::Result<()> {
                 let e = rlox_core::parse_expr(&tokens).unwrap();
                 let r = rlox_core::print_ast_grouped(&e);
                 write_out(&stdout, &r)?;
+                write_out(&stdout, "\n")?;
                 write_out(&stdout, "OK.")?;  
                 write_out(&stdout, "\n")?;
             }
