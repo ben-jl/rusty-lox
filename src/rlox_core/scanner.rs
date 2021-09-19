@@ -152,17 +152,17 @@ fn slice_to_lexeme(source: &str, start: usize, end: usize) -> String {
 
 mod test {
     
-    use super::{Token, TokenType, LexicalError, next};
+    
 
     #[test]
     pub fn test_token_next_works_simplest_case() {
         let source = "(";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
             let (t, cs, _) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::LeftParen);
+            assert_eq!(*t.token_type(), super::TokenType::LeftParen);
             assert_eq!(t.line(), 1);
             assert_eq!(t.lexeme(), "(");
             assert_eq!(cs, 1);
@@ -172,12 +172,12 @@ mod test {
     #[test]
     pub fn test_token_next_works_one_or_two_chars_case_two() {
         let source = "!=";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
             let (t, cs, _) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::BangEqual);
+            assert_eq!(*t.token_type(), super::TokenType::BangEqual);
             assert_eq!(t.line(), 1);
             assert_eq!(t.lexeme(), "!=");
             assert_eq!(cs, 2);
@@ -187,12 +187,12 @@ mod test {
     #[test]
     pub fn test_token_next_works_one_or_two_chars_case_one() {
         let source = "! ";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
             let (t, cs, _) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::Bang);
+            assert_eq!(*t.token_type(), super::TokenType::Bang);
             assert_eq!(t.line(), 1);
             assert_eq!(t.lexeme(), "!");
             assert_eq!(cs, 1);
@@ -202,12 +202,12 @@ mod test {
     #[test]
     pub fn test_token_next_reads_comment_to_end_of_line() {
         let source = "//im a comment\n";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
             let (t, cs, _) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::Comment(String::from("//im a comment")));
+            assert_eq!(*t.token_type(), super::TokenType::Comment(String::from("//im a comment")));
             assert_eq!(t.line(),1);
             assert_eq!(t.lexeme(), "//im a comment");
             assert_eq!(cs, 14);
@@ -217,12 +217,12 @@ mod test {
     #[test]
     pub fn test_token_next_reads_keyword_and() {
         let source = "and";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
 
         if nxt.is_err() { panic!("Expected some, got error {:?}", nxt); }
         else {
             let (t, cs, _) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::And);
+            assert_eq!(*t.token_type(), super::TokenType::And);
             assert_eq!(t.line(), 1);
             assert_eq!(t.lexeme(), "and");
             assert_eq!(cs, 3);
@@ -232,13 +232,13 @@ mod test {
     #[test]
     pub fn test_creates_string_token_correctly_in_next() {
         let source = "\"im a string\"";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
         if nxt.is_err() {
             panic!("Expected some, got error {:?}", nxt); 
         }
         else {
             let (t,cs, _) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::String("im a string".to_string()));
+            assert_eq!(*t.token_type(), super::TokenType::String("im a string".to_string()));
             assert_eq!(t.line(), 1);
             assert_eq!(t.lexeme(), "\"im a string\"");
             assert_eq!(cs, 13);
@@ -248,12 +248,12 @@ mod test {
     #[test]
     pub fn test_creates_number_token_correctly_in_next() {
         let source = "1.345";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
         if nxt.is_err() {
             panic!("Expected some, got error {:?}", nxt);
         } else {
             let (t,cs,_) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::Number(1.345));
+            assert_eq!(*t.token_type(), super::TokenType::Number(1.345));
             assert_eq!(t.line(), 1);
             assert_eq!(t.lexeme(), "1.345");
             assert_eq!(cs, 5);
@@ -263,12 +263,12 @@ mod test {
     #[test]
     pub fn test_creates_identifier_token_correctly_in_next() {
         let source = "identwhat";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
         if nxt.is_err() {
             panic!("Expected some, got error {:?}", nxt);
         } else {
             let (t,cs, _) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::Identifier("identwhat".to_string()));
+            assert_eq!(*t.token_type(), super::TokenType::Identifier("identwhat".to_string()));
             assert_eq!(t.line(), 1);
             assert_eq!(t.lexeme(), "identwhat");
             assert_eq!(cs, 9);
@@ -278,12 +278,12 @@ mod test {
     #[test]
     pub fn test_pulls_out_full_comments() {
         let source = "// see ya";
-        let nxt = next(source, 1);
+        let nxt = super::next(source, 1);
         if nxt.is_err() {
             panic!("Expected some, got error {:?}", nxt);
         } else {
             let (t,cs,_) = nxt.unwrap();
-            assert_eq!(*t.token_type(), TokenType::Comment("// see ya".to_string()));
+            assert_eq!(*t.token_type(), super::TokenType::Comment("// see ya".to_string()));
             assert_eq!(t.line(), 1);
             assert_eq!(t.lexeme(), "// see ya");
             assert_eq!(cs, 9);
@@ -297,6 +297,6 @@ mod test {
         let snd = vals[0].as_ref();
         let sndt = snd.unwrap();
 
-        assert_eq!(TokenType::Identifier("later".to_string()), *sndt.token_type());
+        assert_eq!(super::TokenType::Identifier("later".to_string()), *sndt.token_type());
     }
 }
