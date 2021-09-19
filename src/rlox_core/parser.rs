@@ -36,11 +36,11 @@ fn comparison(tokens: &[Token]) -> Result<(Expr, usize), ParserError> {
         let mut cidx = consumed+1;
         while tokens.len() > cidx && should_loop {
             let (t, nxtconsumed) = term(&tokens[cidx..])?;
-            let o = Rc::from(tokens[cidx].clone());
+            let o = Rc::from(tokens[cidx-1].clone());
             cidx += nxtconsumed;
             ce = Expr::new_binary_expr(Rc::from(ce), o, Rc::from(t));
 
-            should_loop = match *tokens[cidx+1].token_type() {
+            should_loop = tokens.len() > cidx && match *tokens[cidx+1].token_type() {
                 TokenType::GreaterEqual|TokenType::Greater|TokenType::Less|TokenType::LessEqual => {cidx+=1; true},
             _ => false
             };
