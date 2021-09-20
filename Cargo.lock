@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "rusty-lox"
+name = "rlox-cli"
 version = "0.1.0"
