@@ -1,4 +1,6 @@
 [workspace]
 members = [
-    "rlox-cli"
+    "rlox-cli",
+    "rlox-contract",
+    "rlox-scanner"
 ]
