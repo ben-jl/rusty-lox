@@ -20,8 +20,8 @@ impl Token {
         self.line
     }
 
-    pub fn new(token_type: TokenType, lexeme: String, line: i64) -> Token {
-        Token { token_type, lexeme, line }
+    pub fn new<B>(token_type: TokenType, lexeme: B, line: i64) -> Token where B : ToString {
+        Token { token_type, lexeme: lexeme.to_string(), line }
     }
 }
 
