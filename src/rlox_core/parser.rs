@@ -95,13 +95,32 @@ fn primary(tokens: &[Token]) -> Result<(Expr, usize), ParserError> {
             let (interior, consumed) = expression(&tokens[1..])?;
             if *tokens[consumed + 2].token_type() == TokenType::RightParen {
                 Ok((Expr::new_grouping_expr(Rc::from(interior), Rc::from(tokens[consumed].clone())), consumed))
-            } else {
+            } else if *tokens[consumed + 2].token_type() == TokenType::RightParen { 
+                Ok((Expr::new_grouping_expr(Rc::from(interior), Rc::from(tokens[consumed].clone())), consumed))
+
+            }
+            else {
                 Err(ParserError { message: format!("{:?} {:?}", tokens, consumed) })
             }
             
         },
         _ => Err(ParserError { message: "Expected primary token".to_string() })
     }
+}
+
+#[test]
+fn it_parses_primary_tokens_correctly() {
+    let toks = vec![
+            Token::new(TokenType::LeftParen, "(".to_string(), 1),
+            Token::new(TokenType::Number(1.1), "1.1".to_string(), 1),
+            Token::new(TokenType::EqualEqual, "==".to_string(), 1),
+            Token::new(TokenType::Number(2.2), "2.2".to_string(), 1),
+            Token::new(TokenType::RightParen, ")".to_string(), 1)
+    ];
+
+    let res = primary(&toks);
+    println!("{:?}", res);
+    assert_eq!(false,true);
 }
 
 #[derive(Debug)]

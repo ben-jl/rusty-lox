@@ -5,6 +5,7 @@ pub mod rlox_core;
 use rlox_core::scan;
 use rlox_core::parse_expr;
 use rlox_core::print_ast_grouped;
+use rlox_core::pretty_print_ast;
 
 fn main() -> std::io::Result<()> {
     
@@ -67,6 +68,7 @@ fn run_source_fragment(source: &str) -> std::io::Result<()> {
             let mut has_parse_err = false;
             if let Ok(expr) = parsed {
                 println!(r#"{}"#, print_ast_grouped(&expr));
+                pretty_print_ast(&expr)?;
             } else {
                 has_parse_err = true;
                 println!("{:?}", parsed);

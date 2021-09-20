@@ -39,7 +39,7 @@ pub enum TokenType {
     Eof
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Expr {
     expr_type: ExprType,
     token: Rc<Token>
@@ -93,7 +93,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum ExprType {
     BinaryExpr(Rc<Expr>, Rc<TokenType>, Rc<Expr>),
     GroupingExpr(Rc<Expr>),

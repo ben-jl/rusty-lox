@@ -49,6 +49,44 @@ pub fn print_ast_grouped(root_expr: &Expr) -> String {
     res
 }
 
+pub fn pretty_print_ast(expr: &Expr) -> std::io::Result<()> {
+    let mut curr_depth : usize = 0;
+    let mut processed : Vec<(String, usize)> = vec![];
+    let mut left : Vec<&Expr> = vec![expr];
+
+    while let Some(e) = left.pop() {
+        match e.expr_type() {
+            ExprType::LiteralExpr(_, t) => {
+                match t.token_type() {
+                    TokenType::String(s) => { 
+                        processed.push((s.to_string(), curr_depth));
+                    },
+                    _ => unimplemented!()
+                }
+            },
+            ExprType::GroupingExpr(inner) => {
+                processed.push(("grouped".to_string(), curr_depth));
+                left.push(inner);
+                curr_depth += 1;
+            },
+            ExprType::BinaryExpr(l,o,r) => {
+                processed.push(("binary".to_string(), curr_depth));
+                curr_depth += 1;
+                left.push(l);
+                left.push(r);
+            },
+            _ => unimplemented!()
+        }
+    }
+    for (s, ix) in processed {
+        for _ in 0..ix {
+            print!("-");
+        }
+        println!(r#"{}"#, s);
+    }
+    Ok(())
+}
+
 #[allow(dead_code)]
 mod test {
     #[allow(dead_code)]
