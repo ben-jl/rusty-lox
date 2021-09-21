@@ -7,18 +7,32 @@ use rlox_contract::{ExprLiteralValue, Expr, Token, TokenContext, LiteralTokenTyp
 use rlox_scanner::scan;
 use rlox_parser::parse;
 use rlox_parser::ast_printer::print;
+use clap::{App, SubCommand};
+use simplelog::{TermLogger,LevelFilter,Config,TerminalMode,ColorChoice};
 
 fn main() -> std::io::Result<()> {
+    let matches = App::new("rlox")
+                        .version("0.1")
+                        .args_from_usage(
+                            "[FILE]         'the input file to use (if none, enter REPL)'
+                             -d --debug     'if true, will print intermediate parse trees'
+                            "
+                        )
+                        .get_matches();
     
-    let args : Vec<String> = std::env::args().collect();
+    if 0 == matches.occurrences_of("debug") {
+        TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).expect("Unable to construct logger");
+    } else {
+        TermLogger::init(LevelFilter::Debug, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).expect("Unable to construct logger");
+    };
+                        
     let stdin = std::io::stdin();
-    if args.len() == 2 {
-        let source = std::fs::read_to_string(std::path::Path::new(&args[1]))?;
+    if let Some(f) = matches.value_of("FILE") {
+        let source = std::fs::read_to_string(std::path::Path::new(f))?;
         run_source_fragment(&source)?;
 
     } else {
         loop {
-            
             print!("rlox] ");
             std::io::stdout().flush()?;
             let input = read_line_from_stdin(&stdin)?;
@@ -35,6 +49,7 @@ fn main() -> std::io::Result<()> {
 
     Ok(())
 }
+
 
 fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
     let mut handle = stdin.lock();

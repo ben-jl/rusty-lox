@@ -9,3 +9,6 @@ edition = "2018"
 rlox-contract = { path = "../rlox-contract" }
 rlox-scanner  = { path = "../rlox-scanner"  }
 rlox-parser  = { path = "../rlox-parser"  }
+
+clap = "2.33.3"
+simplelog = "0.10.0"

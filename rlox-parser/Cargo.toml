@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 rlox-contract = { path = "../rlox-contract" }
+log = "0.4.14"

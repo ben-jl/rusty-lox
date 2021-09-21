@@ -1,4 +1,6 @@
 extern crate rlox_contract;
+extern crate log;
+use log::{debug, error};
 use std::error::Error;
 use std::fmt::Display;
 use std::collections::VecDeque;
@@ -14,16 +16,23 @@ pub fn parse(tokens: Vec<TokenContext>) -> Result<Expr> {
 
 fn expression(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     if tokens.len() != 0 {
-        println!("expression {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
-        equality(tokens)
+        debug!("expression {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        let r = equality(tokens)?;
+        if tokens.len() >= 1 && tokens[0].token() != &Token::Eof {
+            error!("Unable to match tokens {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+            Err(ParseError::new("Unexpected tokens at end of source"))
+        } else {
+            Ok(r)
+        }
     } else {
+        error!("Unexpected end of file");
         Err(ParseError::new("Unexpected end of file"))
     }
 }
 
 fn equality(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     let mut l = comparison(tokens)?;
-    println!("equality   {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+    debug!("equality   {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     while let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::BangEqual | Token::EqualEqual => {
@@ -42,7 +51,7 @@ fn equality(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 
 fn comparison(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     let mut l = term(tokens)?;
-    println!("comparison {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+    debug!("comparison {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     while let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Greater | Token::GreaterEqual | Token::Less | Token::LessEqual => {
@@ -61,7 +70,7 @@ fn comparison(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 
 fn term(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     let mut l = factor(tokens)?;
-    println!("term       {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+    debug!("term       {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     while let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Minus | Token::Plus => {
@@ -80,7 +89,7 @@ fn term(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 
 fn factor(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     let mut l = unary(tokens)?;
-    println!("factor     {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+    debug!("factor     {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     while let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Slash | Token::Star => {
@@ -98,7 +107,7 @@ fn factor(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 }
 
 fn unary(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
-    println!("unary      {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+    debug!("unary      {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     if let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Bang | Token::Minus => {
@@ -109,12 +118,13 @@ fn unary(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
             _ => { tokens.push_front(t); primary(tokens) }
         }
     } else {
+        error!("Unexpected end of file, expected unary");
         Err(ParseError::new("Unexpected end of file"))
     }
 }
 
 fn primary(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
-    println!("primary    {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+    debug!("primary    {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     
     if let Some(t) = tokens.pop_front() {
         match t.token() {
@@ -129,16 +139,22 @@ fn primary(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
                     if t.token() == &Token::RightParen {
                         Ok(Expr::GroupingExpr(Box::new(inner)))
                     } else {
+                        error!("Expected right paren, found {}", t.token());
                         Err(ParseError::new("expected right paren"))
 
                     }
                 } else {
+                    error!("Expected right paren, found {}", t.token());
                     Err(ParseError::new("expected right paren"))
                 }
             },
-            _ => Err(ParseError::new("Unexpected char"))
+            _ => {
+                error!("Expected right paren, found {}", t.token());
+                Err(ParseError::new("Unexpected char"))
+            }
         }
     } else {
+        error!("Unexpected end of file, expected primary");
         Err(ParseError::new("Unexpected end of file"))
     }
 }
