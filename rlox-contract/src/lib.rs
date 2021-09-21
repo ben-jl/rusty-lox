@@ -37,6 +37,10 @@ impl TokenContext {
     pub fn length(&self) -> usize {
         self.lexeme.len()
     }
+
+    pub fn token(&self) -> &Token {
+        &self.token
+    }
 }
 
 impl Token {
@@ -51,6 +55,7 @@ impl Token {
     pub fn from_string<B>(string: B) -> Token where B : ToString {
         Token::Literal(LiteralTokenType::StringLiteral(string.to_string()))
     }
+
 }
 
 impl Display for Token {

@@ -1,10 +1,12 @@
+extern crate rlox_contract;
+extern crate rlox_scanner;
+extern crate rlox_parser;
 use std::io::Write;
 use std::io::BufRead;
-use std::vec::{Vec, IntoIter};
-pub mod rlox_core;
-use rlox_core::scan;
-use rlox_core::parse_expr;
-use rlox_core::print_ast_grouped;
+use rlox_contract::{ExprLiteralValue, Expr, Token, TokenContext, LiteralTokenType};
+use rlox_scanner::scan;
+use rlox_parser::parse;
+use rlox_parser::ast_printer::print;
 
 fn main() -> std::io::Result<()> {
     
@@ -46,33 +48,19 @@ fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
 
 
 fn run_source_fragment(source: &str) -> std::io::Result<()> {
-    let scanned = scan(&source);
+    match scan(source) {
+        Ok(s) => {
+            let pr = parse(*s);
 
-        let mut has_lex_error = false;
-        let mut tokens = Vec::new();
-        for s in scanned.iter() {
-            if let Ok(sp) = s {
-                println!("{:?}", &sp);
-                tokens.push(sp.clone());
-                
-            } else {
-                has_lex_error = true;
-                println!("{:?}", s);
-            }
+            match pr {
+                Ok(e) => println!("{}", print(&e)),
+                Err(pe) => println!("{}", pe)
+            };
+            Ok(())
+        },
+        Err(l) => {
+            println!("LEXICAL ERROR: {}" , l);
+            Ok(())
         }
-
-        print!("\n");        
-        if !has_lex_error {
-            let parsed = parse_expr(&tokens[..]);
-            let mut has_parse_err = false;
-            if let Ok(expr) = parsed {
-                println!(r#"{}"#, print_ast_grouped(&expr));
-            } else {
-                has_parse_err = true;
-                println!("{:?}", parsed);
-            }
-            
-        }
-
-        Ok(())
+    }
 }
