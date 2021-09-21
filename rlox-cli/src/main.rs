@@ -53,7 +53,7 @@ fn run_source_fragment(source: &str) -> std::io::Result<()> {
             let pr = parse(*s);
 
             match pr {
-                Ok(e) => println!("{}", print(&e)),
+                Ok(e) => println!("\n{}", print(&e)),
                 Err(pe) => println!("{}", pe)
             };
             Ok(())

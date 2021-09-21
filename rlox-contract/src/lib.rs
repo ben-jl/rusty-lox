@@ -43,6 +43,13 @@ impl TokenContext {
     }
 }
 
+impl Display for TokenContext {
+    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> { 
+        write!(f, "({} {}:{})", self.token(), self.line_number, self.start_char_offset)
+     }
+}
+
 impl Token {
     pub fn from_number(n : f64) -> Token {
         Token::Literal(LiteralTokenType::NumberLiteral(n))
@@ -63,9 +70,9 @@ impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> { 
         match self {
             Token::Literal(lt) => match lt {
-                LiteralTokenType::NumberLiteral(n) => write!(f, "NUMBER {}", n),
-                LiteralTokenType::StringLiteral(s) => write!(f, "STRING {}", s),
-                LiteralTokenType::IdentifierLiteral(i) => write!(f, "IDENT {}", i)
+                LiteralTokenType::NumberLiteral(n) => write!(f, "Number {}", n),
+                LiteralTokenType::StringLiteral(s) => write!(f, "String {}", s),
+                LiteralTokenType::IdentifierLiteral(i) => write!(f, "Ident {}", i)
             },
             t => write!(f, "{:?}", t)
         }?;

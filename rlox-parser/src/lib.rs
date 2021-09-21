@@ -14,6 +14,8 @@ pub fn parse(tokens: Vec<TokenContext>) -> Result<Expr> {
 
 fn expression(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     if tokens.len() != 0 {
+ 
+        println!("expression {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
         equality(tokens)
     } else {
         Err(ParseError::new("Unexpected end of file"))
@@ -22,7 +24,7 @@ fn expression(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 
 fn equality(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     let l = comparison(tokens)?;
-    println!("after {:?}", tokens);
+    println!("equality   {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     if tokens.len() > 0 && (tokens[0].token() == &Token::BangEqual || tokens[0].token() == &Token::EqualEqual) {
         let operator = tokens.pop_front().unwrap();
         if tokens.len() > 0 {
@@ -40,7 +42,7 @@ fn equality(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 
 fn comparison(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     let l = term(tokens)?;
-    println!("{:?}", tokens);
+    println!("comparison {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     if let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Greater | Token::GreaterEqual | Token::Less | Token::LessEqual => {
@@ -60,7 +62,7 @@ fn comparison(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 
 fn term(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     let l = factor(tokens)?;
-    println!("{:?}", tokens);
+    println!("term       {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     if let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Minus | Token::Plus => {
@@ -80,7 +82,7 @@ fn term(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 
 fn factor(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     let l = unary(tokens)?;
-    println!("{:?}", tokens);
+    println!("factor     {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     if let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Slash | Token::Star => {
@@ -99,6 +101,7 @@ fn factor(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 }
 
 fn unary(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
+    println!("unary      {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
     if let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Bang | Token::Minus => {
@@ -114,7 +117,8 @@ fn unary(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 }
 
 fn primary(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
-    println!("{:?}", tokens);
+    println!("primary    {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+    
     if let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Literal(LiteralTokenType::NumberLiteral(n)) => Ok(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(*n))),
