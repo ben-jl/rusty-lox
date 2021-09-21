@@ -14,7 +14,6 @@ pub fn parse(tokens: Vec<TokenContext>) -> Result<Expr> {
 
 fn expression(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
     if tokens.len() != 0 {
- 
         println!("expression {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
         equality(tokens)
     } else {
@@ -23,81 +22,79 @@ fn expression(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
 }
 
 fn equality(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
-    let l = comparison(tokens)?;
+    let mut l = comparison(tokens)?;
     println!("equality   {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
-    if tokens.len() > 0 && (tokens[0].token() == &Token::BangEqual || tokens[0].token() == &Token::EqualEqual) {
-        let operator = tokens.pop_front().unwrap();
-        if tokens.len() > 0 {
-             let r = comparison(tokens)?;
-             Ok(Expr::new_binary_expr(l, operator.token().clone(), r))
-        }else {
-            Err(ParseError::new("Unexpected end of file"))
+    while let Some(t) = tokens.pop_front() {
+        match t.token() {
+            Token::BangEqual | Token::EqualEqual => {
+                let o = t.token();
+                let e = comparison(tokens)?;
+                l = Expr::new_binary_expr(l, o.clone(), e);
+            }, 
+            _ => {
+                tokens.push_front(t);
+                break;
+            }
         }
-    } else {
-        Ok(l)
     }
-
-    
+    Ok(l)
 }
 
 fn comparison(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
-    let l = term(tokens)?;
+    let mut l = term(tokens)?;
     println!("comparison {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
-    if let Some(t) = tokens.pop_front() {
+    while let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Greater | Token::GreaterEqual | Token::Less | Token::LessEqual => {
                 let o = t.token();
                 let e = term(tokens)?;
-                Ok(Expr::new_binary_expr(l, o.clone(), e))
+                l = Expr::new_binary_expr(l, o.clone(), e);
             },
             _ => {
                 tokens.push_front(t);
-                Ok(l)
+                break;
             }
         }
-    } else {
-        Ok(l)
-    }
+    } 
+    Ok(l)
 }
 
 fn term(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
-    let l = factor(tokens)?;
+    let mut l = factor(tokens)?;
     println!("term       {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
-    if let Some(t) = tokens.pop_front() {
+    while let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Minus | Token::Plus => {
                 let o = t.token();
                 let r = factor(tokens)?;
-                Ok(Expr::new_binary_expr(l, o.clone(), r))
+                l = Expr::new_binary_expr(l, o.clone(), r);
             },
             _ => {
                 tokens.push_front(t);
-                Ok(l)
+                break;
             }
         }
-    } else {
-        Ok(l)
-    }
+    } 
+    Ok(l)
 }
 
 fn factor(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
-    let l = unary(tokens)?;
+    let mut l = unary(tokens)?;
     println!("factor     {:?}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
-    if let Some(t) = tokens.pop_front() {
+    while let Some(t) = tokens.pop_front() {
         match t.token() {
             Token::Slash | Token::Star => {
                 let o = t.token();
                 let r = unary(tokens)?;
-                Ok(Expr::new_binary_expr(l, o.clone(), r))
+                l = Expr::new_binary_expr(l, o.clone(), r)
             },
             _ => {
                 tokens.push_front(t);
-                Ok(l)
+                break;
             }
         }
-    } else {
-        Ok(l)
-    }
+    } 
+    Ok(l)
 }
 
 fn unary(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
@@ -171,15 +168,47 @@ mod tests {
 
     #[test]
     fn test_parser_basic() {
-    let ts = vec![
-        TokenContext::new(Token::from_number(3.0), 1, 0, "3.0"),
-        TokenContext::new(Token::BangEqual, 1, 4, "!="), 
-        TokenContext::new(Token::from_string("\"bye now\""), 1, 6, "\"bye now\"")
-        ];
-    
-    let res = parse(ts).unwrap();
+        let ts = vec![
+            TokenContext::new(Token::from_number(3.0), 1, 0, "3.0"),
+            TokenContext::new(Token::BangEqual, 1, 4, "!="), 
+            TokenContext::new(Token::from_string("\"bye now\""), 1, 6, "\"bye now\"")
+            ];
+        
+        let res = parse(ts).unwrap();
 
-    let r = print(&res);
-    assert_eq!("3.00 BangEqual \"bye now\"",r);
-}
+        let r = print(&res);
+        assert_eq!("3.00 BangEqual \"bye now\"",r);
+    }
+
+    #[test]
+    fn test_parses_flat_series_of_terms_to_end() {
+        let ts = vec![
+            TokenContext::new(Token::from_number(3.0), 1, 0, "3.0"),
+            TokenContext::new(Token::Plus, 1, 3, "+"),
+            TokenContext::new(Token::from_number(10.4),1, 5, "10.4"),
+            TokenContext::new(Token::Minus, 1, 9, "-"),
+            TokenContext::new(Token::from_number(1.2), 1, 11, "1.2")
+        ];
+
+        let res = parse(ts).unwrap();
+        let r = print(&res);
+        
+        assert_eq!("3.00 Plus 10.40 Minus 1.20", r);
+    }
+
+    #[test]
+    fn test_parses_flat_series_of_factors_correctly() {
+        let ts = vec![
+            TokenContext::new(Token::from_number(3.0), 1, 0, "3.0"),
+            TokenContext::new(Token::Star, 1, 3, "*"),
+            TokenContext::new(Token::from_number(10.4),1, 5, "10.4"),
+            TokenContext::new(Token::Slash, 1, 9, "/"),
+            TokenContext::new(Token::from_number(1.2), 1, 11, "1.2")
+        ];
+
+        let res = parse(ts).unwrap();
+        let r = print(&res);
+        
+        assert_eq!("3.00 Star 10.40 Slash 1.20", r);
+    }
 }
