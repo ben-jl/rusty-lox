@@ -67,3 +67,29 @@ impl Display for Token {
         Ok(())
      }
 }
+
+#[derive(Debug)]
+pub enum Expr {
+    BinaryExpr { left: Box<Expr>, operator: Token, right: Box<Expr> },
+    GroupingExpr(Box<Expr>),
+    LiteralExpr(ExprLiteralValue),
+    UnaryExpr { operator: Token, right: Box<Expr> }
+}
+
+#[derive(Debug)]
+pub enum ExprLiteralValue {
+    StringLiteral(String),
+    NumberLiteral(f64),
+    BooleanLiteral(bool),
+    NilLiteral
+}
+
+impl Expr {
+    pub fn new_binary_expr(left: Expr, operator: Token, right: Expr) -> Expr {
+        let l = Box::from(left);
+        let r = Box::from(right);
+
+        let o = operator.clone();
+        Expr::BinaryExpr { left: l, operator: o, right: r}
+    }
+}

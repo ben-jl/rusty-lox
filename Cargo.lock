@@ -7,12 +7,20 @@ name = "rlox-cli"
 version = "0.1.0"
 dependencies = [
  "rlox-contract",
+ "rlox-parser",
  "rlox-scanner",
 ]
 
 [[package]]
 name = "rlox-contract"
 version = "0.1.0"
+
+[[package]]
+name = "rlox-parser"
+version = "0.1.0"
+dependencies = [
+ "rlox-contract",
+]
 
 [[package]]
 name = "rlox-scanner"
