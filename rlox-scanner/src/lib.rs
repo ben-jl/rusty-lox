@@ -18,9 +18,11 @@ pub fn scan(source: &str) -> Result<Box<Vec<TokenContext>>> {
     let mut line = 1;
     let mut char_idx : usize= 0;
     let chars : Vec<char> = source.chars().collect();
+
+    let mut full = 0;
     while current_idx < source.len() {
+        println!("{:?} {:?}", &chars[current_idx..], &tokens);
         if chars[current_idx].is_whitespace() {
-            
             char_idx += 1;
             if chars[current_idx] == '\n' {
                 line += 1;
@@ -65,25 +67,29 @@ pub fn scan(source: &str) -> Result<Box<Vec<TokenContext>>> {
                             }
                         },
                         '/' => {
+                            
                             if chars.len() > current_idx + 1 && chars[current_idx + 1] == '/' {
                                 for (idx, j) in chars[current_idx..].iter().enumerate() {
-                                    current_idx = idx;
+                                    current_idx+=1;   
+                                    
                                     if *j == '\n' {
                                         line += 1;
                                         break;
                                     }
                                 }
+
+                                
                                 continue;
                             } else {
                                TokenContext::new(Token::Slash, line, char_idx, "/")                                
                             }
                         }
                         _ => {
+                            println!("{:?}", &chars[current_idx..]);
                             if c.is_digit(10) {
                                 let mut num_str = String::new();
 
                                 for (ix, nxt_c) in chars[current_idx..].iter().enumerate() {
-                                    current_idx = ix;
                                     let wc = nxt_c.clone();
                                     if !(wc.is_digit(10)) && wc != '.' {
                                         break;
@@ -96,20 +102,56 @@ pub fn scan(source: &str) -> Result<Box<Vec<TokenContext>>> {
 
                                 
                             }else if *c == '"' {
-                                unimplemented!()
+                                let mut chunk = String::new();
+                                if current_idx + 1 > chars.len() {
+                                    return Err(LexicalError::new(format!("Unexpected EOF, expected \"")));
+                                }
+                                chunk.push('"');
+                                let start_char_idx = char_idx;
+                                for (ix, nxt_c) in chars[current_idx+1..].iter().enumerate() {
+                                    chunk.push(nxt_c.clone());
+                                    char_idx += 1;
+                                    if nxt_c.clone() == '"' {
+                                        break;
+                                    }
+                                    if nxt_c.clone() == '\n' {
+                                        line += 1;
+                                        char_idx = 0;
+                                    }
+                                }
+                                TokenContext::new(Token::Literal(LiteralTokenType::StringLiteral(chunk.clone())), line, start_char_idx, chunk.clone())
                             } else {
                                 let mut chunk = String::new();
                                 for (ix, nxt_c) in chars[current_idx..].iter().enumerate() {
-                                    current_idx = ix;
+                                    
                                     if nxt_c.is_whitespace() {
                                         break;
-                                    } else {
+                                    } else if !nxt_c.is_alphanumeric() && *nxt_c != '_' {
+                                        return Err(LexicalError::new(format!("UNEXPECTED CHAR {} at {}:{}", nxt_c, line, char_idx)));
+                                    }
+                                    else {
                                         chunk.push(*nxt_c);
                                     }
+
                                 }
                                 match chunk.as_str() {
                                     "and" => TokenContext::new(Token::And, line, char_idx, chunk),
-                                    _ => panic!(chunk)
+                                    "class" => TokenContext::new(Token::Class, line, char_idx, chunk),
+                                    "else" => TokenContext::new(Token::Else, line, char_idx, chunk),
+                                    "false" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "fun" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "for" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "if" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "nil" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "or" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "print" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "return" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "super" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "this" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "true" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "var" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    "while" => TokenContext::new(Token::False, line, char_idx, chunk),
+                                    _ => TokenContext::new(Token::from_identifier(&chunk), line, char_idx, chunk)
                                 }
                                 
                             }
@@ -118,14 +160,16 @@ pub fn scan(source: &str) -> Result<Box<Vec<TokenContext>>> {
                     
                 }
             };
+            println!("{:?}", current_idx);
             current_idx += &ctx.length();
             char_idx += &ctx.length();
             tokens.push(ctx);
+            
         }
         
         
     }
-
+    tokens.push(TokenContext::new(Token::Eof, line, char_idx, ""));
     Ok(Box::from(tokens))
 }
 
@@ -199,15 +243,15 @@ mod tests {
 
         let res = scan(&source).unwrap();
 
-        assert_eq!(1, res.len());
-        assert_eq!(TokenContext::new(Token::BangEqual, 3, 8, "!="), res[0]);
+        assert_eq!(2, res.len());
+        assert_eq!(TokenContext::new(Token::BangEqual, 2, 8, "!="), res[0]);
     }
 
     #[test]
     fn it_parses_slash_correctly() {
         let source = "/ ";
         let res = scan(&source).unwrap();
-        assert_eq!(1, res.len());
+        assert_eq!(2, res.len());
         assert_eq!(TokenContext::new(Token::Slash, 1, 0, "/"), res[0]);
     }
 
@@ -230,5 +274,19 @@ mod tests {
         let source = "and";
         let res = scan(&source).unwrap();
         assert_eq!(TokenContext::new(Token::And, 1, 0, "and"), res[0]);
+    }
+
+    #[test]
+    fn it_parses_comments_correctly_at_eof() {
+        let source = "and //hello";
+        let res = scan(&source).unwrap();
+        assert_eq!(2, res.len());
+    }
+
+    #[test]
+    fn it_parses_strings_correctly() {
+        let source = "\"hello\"";
+        let res = scan(&source).unwrap();
+        assert_eq!(TokenContext::new(Token::from_string("\"hello\""), 1, 0, "\"hello\""), res[0]);
     }
 }
