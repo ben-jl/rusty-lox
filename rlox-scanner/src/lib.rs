@@ -12,16 +12,12 @@ pub fn scan(source: &str) -> Result<Box<Vec<TokenContext>>> {
 
     let mut tokens : Vec<TokenContext> = Vec::new();
     
-    let mut temp_buffer : Vec<char> = vec![];
-
     let mut current_idx = 0;
     let mut line = 1;
     let mut char_idx : usize= 0;
     let chars : Vec<char> = source.chars().collect();
 
-    let mut full = 0;
     while current_idx < source.len() {
-        println!("{:?} {:?}", &chars[current_idx..], &tokens);
         if chars[current_idx].is_whitespace() {
             char_idx += 1;
             if chars[current_idx] == '\n' {
@@ -85,7 +81,6 @@ pub fn scan(source: &str) -> Result<Box<Vec<TokenContext>>> {
                             }
                         }
                         _ => {
-                            println!("{:?}", &chars[current_idx..]);
                             if c.is_digit(10) {
                                 let mut num_str = String::new();
 
@@ -160,7 +155,6 @@ pub fn scan(source: &str) -> Result<Box<Vec<TokenContext>>> {
                     
                 }
             };
-            println!("{:?}", current_idx);
             current_idx += &ctx.length();
             char_idx += &ctx.length();
             tokens.push(ctx);
