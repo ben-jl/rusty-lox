@@ -85,7 +85,10 @@ pub enum Expr {
     BinaryExpr { left: Box<Expr>, operator: Token, right: Box<Expr> },
     GroupingExpr(Box<Expr>),
     LiteralExpr(ExprLiteralValue),
-    UnaryExpr { operator: Token, right: Box<Expr> }
+    UnaryExpr { operator: Token, right: Box<Expr> },
+    PrintStmt(Box<Expr>),
+    ExprStmt(Box<Expr>),
+    VarDecl {name: Token, initializer: Box<Expr>  }
 }
 
 #[derive(Debug)]
@@ -95,6 +98,8 @@ pub enum ExprLiteralValue {
     BooleanLiteral(bool),
     NilLiteral
 }
+
+
 
 impl Expr {
     pub fn new_binary_expr(left: Expr, operator: Token, right: Expr) -> Expr {

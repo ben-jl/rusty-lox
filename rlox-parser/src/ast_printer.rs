@@ -36,7 +36,20 @@ pub fn print(expr: &Expr) -> String {
                     },
                     Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)) => { expr_stack.push(PrinterIntermediateResult::PrintAction("true".to_string()))},
                     Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)) => { expr_stack.push(PrinterIntermediateResult::PrintAction("false".to_string()))},
-                    Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => { expr_stack.push(PrinterIntermediateResult::PrintAction("nil".to_string()))}
+                    Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => { expr_stack.push(PrinterIntermediateResult::PrintAction("nil".to_string()))},
+                    Expr::PrintStmt(inner) => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(format!(" PRINT ")));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(inner));
+
+                    },
+                    Expr::ExprStmt(inner) => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(format!(" EXPRSTMT ")));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(inner));
+                    },
+                    Expr::VarDecl { name, initializer } => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(format!(" var {} = ", name)));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(initializer));
+                    }
                 }
             },
             PrinterIntermediateResult::PrintAction(s) => fin_stack.push(s)

@@ -20,29 +20,88 @@ impl Parser {
     }
 
     pub fn add_tokens(&mut self, tokens: Vec<TokenContext>) {
+        debug!("{:?}", tokens);
         self.tokens.extend(tokens);
     }
 
-    pub fn parse(&mut self) -> Result<Expr> {
+    pub fn parse(&mut self) -> Result<Vec<Expr>> {
         //expression(&mut self.tokens)
-        let res = self.expression();
-        if self.tokens.len() != 1 || self.tokens[0].token() != &Token::Eof {
-            error!("Not all input consumed {:?}", &self.tokens);
-            self.tokens.clear();
-            Err(ParseError::new("Not all input consumed"))
-        } else if let Ok(e) = &res {
-            self.tokens.clear();
 
-            debug!("PARSED => {}", ast_printer::print(&e));
-            res
-        } else if let Err(er) = &res {
-            self.tokens.clear();
-            error!("PARSER ERROR {}", er);
-            res
-        } else {
-            self.tokens.clear();
-            panic!("UNKNOWN STATE");
+        let mut stmts = Vec::new();
+        while !self.eof() {
+            match self.decl() {
+                Ok(smt) => { stmts.push(smt); },
+                Err(e) => {
+                    self.tokens.clear();
+                    return Err(e);
+                }
+            }
+            
         }
+        self.tokens.clear();
+        Ok(stmts)
+    }
+
+    fn decl(&mut self) -> Result<Expr> {
+        if let Some(Token::Var) = self.peek().map(|e| e.token()) {
+            self.var_decl()
+        } else {
+            self.stmt()
+        }
+    }
+
+    fn var_decl(&mut self) -> Result<Expr> {
+        debug!("[ini] var_decl     {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.consume(&Token::Var)?;
+        if let Some(tc) = self.tokens.pop_front() {
+            if let Token::Literal(LiteralTokenType::IdentifierLiteral(_)) = &tc.token() {
+                
+                if let Some(Token::Equal) = self.peek().map(|e| e.token()) {
+                    self.consume(&Token::Equal)?;
+                    let initializer = self.expression()?;
+                    self.consume(&Token::Semicolon)?;
+                    Ok(Expr::VarDecl { name: tc.token().clone(), initializer: Box::from(initializer) })    
+                } else {
+                    Ok(Expr::VarDecl { name: tc.token().clone(), initializer: Box::from(Expr::LiteralExpr(ExprLiteralValue::NilLiteral))})
+                }
+
+            } else {
+                return Err(ParseError::new("Expected identifier"));
+            }
+        } else {
+            return Err(ParseError::new("Unexpected EOF"));
+        }
+    }
+
+    fn stmt(&mut self) -> Result<Expr> {
+        debug!("[ini] stmt        {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        if self.eof() {
+            error!("Unexpected EOF, expected [stmt]");
+            Err(ParseError::new(format!("Unexpected EOF, expected [stmt]"))) 
+        } else if let Some(tc) = self.peek() {
+            match tc.token() {
+                Token::Print => self.print_stmt(),
+                _ => self.expression_stmt()
+            }
+        } else {
+            error!("Unexpected EOF, expected [stmt]");
+            Err(ParseError::new(format!("Unexpected EOF, expected [stmt]"))) 
+        }
+    }
+
+    fn expression_stmt(&mut self) -> Result<Expr> {
+        debug!("[ini] exprStmt    {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        let e = self.expression()?;
+        self.consume(&Token::Semicolon)?;
+        Ok(e)
+    }
+
+    fn print_stmt(&mut self) -> Result<Expr> {
+        debug!("[ini] printStmt   {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.consume(&Token::Print)?;
+        let e = self.expression()?;
+        self.consume(&Token::Semicolon)?;
+        Ok(e)
     }
 
     fn expression(&mut self) -> Result<Expr> {
@@ -181,8 +240,10 @@ impl Parser {
     }
 
     fn eof(&self) -> bool {
-        let res = self.peek().map(|e| *e.token() == Token::Eof).unwrap_or(true);
-        res
+        if let Some(&Token::Eof) = self.peek().map(|e| e.token()) {
+
+            true
+        } else { false }
     }
 
     fn consume(&mut self, token: &Token) -> Result<()> {
@@ -235,13 +296,14 @@ mod tests {
             TokenContext::new(Token::from_number(3.0), 1, 0, "3.0"),
             TokenContext::new(Token::BangEqual, 1, 4, "!="), 
             TokenContext::new(Token::from_string(r#""bye now""#), 1, 6, "\"bye now\""),
+            TokenContext::new(Token::Semicolon, 1, 7, ";"),
             TokenContext::new(Token::Eof, 1, 11, "")
             ];
         let mut parser = Parser::new();
         parser.add_tokens(ts);
         let res = parser.parse().unwrap();
 
-        let r = print(&res);
+        let r = print(&res[0]);
         assert_eq!("3.00 BangEqual \"bye now\"",r);
     }
 
@@ -253,12 +315,13 @@ mod tests {
             TokenContext::new(Token::from_number(10.4),1, 5, "10.4"),
             TokenContext::new(Token::Minus, 1, 9, "-"),
             TokenContext::new(Token::from_number(1.2), 1, 11, "1.2"),
+            TokenContext::new(Token::Semicolon, 1, 7, ";"),
             TokenContext::new(Token::Eof, 1, 11, "")
         ];
         let mut parser = Parser::new();
         parser.add_tokens(ts);
         let res = parser.parse().unwrap();
-        let r = print(&res);
+        let r = print(&res[0]);
         
         assert_eq!("3.00 Plus 10.40 Minus 1.20", r);
     }
@@ -271,12 +334,13 @@ mod tests {
             TokenContext::new(Token::from_number(10.4),1, 5, "10.4"),
             TokenContext::new(Token::Slash, 1, 9, "/"),
             TokenContext::new(Token::from_number(1.2), 1, 11, "1.2"),
+            TokenContext::new(Token::Semicolon, 1, 7, ";"),
             TokenContext::new(Token::Eof, 1, 11, "")
         ];
         let mut parser = Parser::new();
         parser.add_tokens(ts);
         let res = parser.parse().unwrap();
-        let r = print(&res);
+        let r = print(&res[0]);
         
         assert_eq!("3.00 Star 10.40 Slash 1.20", r);
     }
@@ -292,11 +356,12 @@ mod tests {
             TokenContext::new(Token::Slash, 1, 9, "/"),
             TokenContext::new(Token::from_number(1.2), 1, 11, "1.2"),
             TokenContext::new(Token::RightParen, 1, 0 , ")"),
+            TokenContext::new(Token::Semicolon, 1, 7, ";"),
             TokenContext::new(Token::Eof, 1, 11, "")
         ];
         let mut parser = Parser::new();
         parser.add_tokens(ts);
         let res = parser.parse().unwrap();
-        let r = print(&res);
+        let r = print(&res[0]);
     }
 }

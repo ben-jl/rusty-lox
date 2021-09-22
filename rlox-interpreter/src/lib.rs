@@ -34,7 +34,7 @@ impl Interpreter {
         self.parser.add_tokens(*sres);
         let pres = self.parser.parse().unwrap();
         print!("\n");
-        println!("{}", print(&pres));
+        println!("{:?}", pres);
         Ok(())
     }
 
@@ -49,17 +49,20 @@ impl Interpreter {
             let sres = self.scanner.scan(&nxt);
             match sres {
                 Ok(ts) => {
-                    self.parser.add_tokens(*ts);
+                    debug!("{:?}", &ts);
+                    self.parser.add_tokens(ts.to_vec());
                     let pres = self.parser.parse();
+                    debug!("{:?}", pres);
                     match pres {
-                        Ok(expr) => { 
-                            println!("{}", print(&expr));
-                            print!("\n");
-                            match self.interpret(Box::from(expr)) {
-                                Err(e) => println!("{:?}", e),
-                                v => {
-                                    println!("{:?}",v);
-                                    println!("OK.")
+                        Ok(exprs) => { 
+                            for expr in exprs {
+                                print!("\n");
+                                match self.interpret(Box::from(expr)) {
+                                    Err(e) => println!("{:?}", e),
+                                    v => {
+                                        println!("{:?}",v);
+                                        println!("OK.")
+                                    }
                                 }
                             }
                         },
@@ -143,6 +146,20 @@ impl Interpreter {
 
                     _ => return Err(InterpreterError::new("not recognized"))
                 }
+            },
+            Expr::PrintStmt(inner) => {
+                let res = self.interpret(inner)?;
+                println!("{:?}", res);
+                ComputedValue::NilValue
+            },
+            Expr::ExprStmt(inner) => {
+                let res = self.interpret(inner)?;
+                res
+            },
+            Expr::VarDecl { name, initializer } => {
+                let v = self.interpret(initializer)?;
+                println!("{:?} = {:?}", name, v);
+                v
             }
         };
         debug!("Intermediate {:?}", v);
