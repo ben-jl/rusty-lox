@@ -24,8 +24,7 @@ impl Interpreter {
     }
 
     pub fn execute_source<B>(&mut self, source: B) -> std::io::Result<()> where B : ToString {
-        self.scanner.add_source(source.to_string());
-        let sres = self.scanner.scan().expect("scanner failed");
+        let sres = self.scanner.scan(&source.to_string()).expect("scanner failed");
         self.parser.add_tokens(*sres);
         let pres = self.parser.parse().unwrap();
         print!("\n");
@@ -41,8 +40,7 @@ impl Interpreter {
             if nxt.clone() == "quit" {
                 break;
             }
-            self.scanner.add_source(nxt);
-            let sres = self.scanner.scan();
+            let sres = self.scanner.scan(&nxt);
             match sres {
                 Ok(ts) => {
                     self.parser.add_tokens(*ts);

@@ -31,6 +31,8 @@ impl Parser {
             self.tokens.clear();
             Err(ParseError::new("Not all input consumed"))
         } else if let Ok(e) = &res {
+            self.tokens.clear();
+
             debug!("PARSED => {}", ast_printer::print(&e));
             res
         } else if let Err(er) = &res {

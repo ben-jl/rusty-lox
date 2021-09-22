@@ -6,7 +6,7 @@ mod scanner_basic_tests {
 
     #[test]
     fn simple_scanner_integration_test_works() {
-        let foo = rlox_scanner::Scanner::from_source("hello").scan().unwrap();
+        let foo = rlox_scanner::Scanner::new().scan("hello").unwrap();
         assert_eq!(rlox_contract::TokenContext::new(rlox_contract::Token::from_identifier("hello"), 1, 0, "hello"),foo[0]);
     }
 
@@ -17,7 +17,7 @@ mod scanner_basic_tests {
         }
         // bye
         "#;
-        let res = rlox_scanner::Scanner::from_source(source).scan().unwrap();
+        let res = rlox_scanner::Scanner::new().scan(source).unwrap();
         let expected = vec![
             rlox_contract::TokenContext::new(rlox_contract::Token::Class, 1, 0, "class"),
             rlox_contract::TokenContext::new(rlox_contract::Token::from_identifier("foo"), 1, 6, "foo"),

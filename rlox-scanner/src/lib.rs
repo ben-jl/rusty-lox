@@ -6,24 +6,20 @@ use std::error::Error;
 type Result<T> = std::result::Result<T, LexicalError>;
 
 pub struct Scanner {
-    source: String
+
 }
 
 impl Scanner {
-    pub fn from_source<B>(src: B) -> Scanner where B : ToString {
-        Scanner { source: src.to_string() }
-    }
+
 
     pub fn new() -> Scanner {
-        Scanner { source: "".to_string() }
+        Scanner {  }
     }
 
-    pub fn add_source<B>(&mut self, src:B) -> () where B : ToString {
-        self.source.extend(src.to_string().chars());
-    }
 
-    pub fn scan(&self) -> Result<Box<Vec<TokenContext>>> {
-        let source = &self.source;
+
+    pub fn scan(&self, source: &str) -> Result<Box<Vec<TokenContext>>> {
+        
         if source.len() == 0 {
             return Ok(Box::from(vec![]));
         }
@@ -213,14 +209,14 @@ mod tests {
     #[test]
     fn it_parses_out_single_token_lexeme() {
         let source= "(";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::LeftParen, 1, 0, "("), res[0]);
     }
 
     #[test]
     fn it_parses_out_simple_two_char_lexeme() {
         let source = "<=";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::LessEqual, 1, 0, "<="), res[0]);
 
     }
@@ -228,14 +224,14 @@ mod tests {
     #[test]
     fn it_skips_whitespace_incrementing_char_counter() {
         let source = "  *";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::Star, 1, 2, "*"), res[0]);
     }
 
     #[test]
     fn it_parses_potential_two_char_lexeme_into_one_char_lexeme_if_subs_not_present() {
         let source = "!)";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::Bang, 1, 0, "!"), res[0]);
     }
 
@@ -245,7 +241,7 @@ mod tests {
 
         !=
         "#;
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::BangEqual, 3, 8, "!="), res[0]);
     }
 
@@ -255,7 +251,7 @@ mod tests {
         !=
         "#;
 
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
 
         assert_eq!(2, res.len());
         assert_eq!(TokenContext::new(Token::BangEqual, 2, 8, "!="), res[0]);
@@ -264,7 +260,7 @@ mod tests {
     #[test]
     fn it_parses_slash_correctly() {
         let source = "/ ";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(2, res.len());
         assert_eq!(TokenContext::new(Token::Slash, 1, 0, "/"), res[0]);
     }
@@ -272,35 +268,35 @@ mod tests {
     #[test]
     fn it_parses_number_correctly() {
         let source = "2.1";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::Literal(LiteralTokenType::NumberLiteral(2.1)), 1, 0, "2.1"), res[0]);
     }
 
     #[test]
     fn it_parses_number_correctly_no_decimal_part() {
         let source = "2.";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::Literal(LiteralTokenType::NumberLiteral(2.0)), 1, 0, "2."), res[0]);
     }
 
     #[test]
     fn it_parses_simple_keyword_out_correctly() {
         let source = "and";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::And, 1, 0, "and"), res[0]);
     }
 
     #[test]
     fn it_parses_comments_correctly_at_eof() {
         let source = "and //hello";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(2, res.len());
     }
 
     #[test]
     fn it_parses_strings_correctly() {
         let source = "\"hello\"";
-        let res = super::Scanner::from_source(source).scan().unwrap();
+        let res = super::Scanner::new().scan(source).unwrap();
         assert_eq!(TokenContext::new(Token::from_string("\"hello\""), 1, 0, "\"hello\""), res[0]);
     }
 }
