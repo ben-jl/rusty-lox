@@ -1,7 +1,10 @@
 extern crate rlox_contract;
 extern crate rlox_scanner;
 extern crate rlox_parser;
-
+use log::{error, debug};
+use rlox_contract::Token;
+use std::collections::VecDeque;
+use rlox_contract::{Expr,ExprLiteralValue};
 use std::io::Write;
 use std::io::BufRead;
 use rlox_scanner::Scanner;
@@ -47,7 +50,11 @@ impl Interpreter {
                     match pres {
                         Ok(expr) => { 
                             println!("{}", print(&expr));
-                            println!("OK.");
+                            print!("\n");
+                            match self.execute(expr) {
+                                Err(e) => println!("{:?}", e),
+                                _ => println!("OK.")
+                            }
                         },
                         Err(pe) => { println!("{}", pe);}
                     }
@@ -61,6 +68,219 @@ impl Interpreter {
         println!("Exiting...");
         Ok(())
     }
+
+    fn execute(&self, expr: Expr) -> std::io::Result<()> {
+        let mut calc_stack = VecDeque::new();
+        let mut literals = VecDeque::new();
+        calc_stack.push_front(IntermediateValue::Expression(expr));
+
+        while let Some(e) = calc_stack.pop_front() {
+            debug!("intermediate {:?}", calc_stack);
+            debug!("literals     {:?}", literals);
+            match e {
+                IntermediateValue::Operator(t) => {
+                    match t {
+                        Token::Minus => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r)  {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    literals.push_front(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl - nr)));
+
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers, found {:?} and {:?}", l, r);
+                                }
+                            }
+
+                        },
+                        Token::Plus => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r)  {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    literals.push_front(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl + nr)));
+
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers, found {:?} and {:?}", l, r);
+                                }
+                            }
+
+                        },
+                        Token::Greater => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r)  {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    if nl > nr {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)));
+                                    } else {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)));
+                                    }
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers, found {:?} and {:?}", l, r);
+                                }
+                            }
+                        },
+                        Token::GreaterEqual => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r)  {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    if nl >= nr {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)));
+                                    } else {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)));
+                                    }
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers, found {:?} and {:?}", l, r);
+                                }
+                            }
+                        },
+                        Token::LessEqual => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r)  {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    if nl <= nr {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)));
+                                    } else {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)));
+                                    }
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers, found {:?} and {:?}", l, r);
+                                }
+                            }
+                        },
+                        Token::EqualEqual => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r)  {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    if nl == nr {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)));
+                                    } else {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)));
+                                    }
+                                },
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::StringLiteral(sl))), Some(Expr::LiteralExpr(ExprLiteralValue::StringLiteral(sr)))) => {
+                                    if sl == sr {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)));
+                                    } else {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)));
+                                    }
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers or strings, found {:?} and {:?}", l, r);
+                                }
+                            }
+                        },
+                        Token::BangEqual => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r)  {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    if nl != nr {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)));
+                                    } else {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)));
+                                    }
+                                },
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::StringLiteral(sl))), Some(Expr::LiteralExpr(ExprLiteralValue::StringLiteral(sr)))) => {
+                                    if sl != sr {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)));
+                                    } else {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)));
+                                    }
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers or strings, found {:?} and {:?}", l, r);
+                                }
+                            }
+                        },
+                        Token::Less => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r)  {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    if nl < nr {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)));
+                                    } else {
+                                        literals.push_front(Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)));
+                                    }
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers, found {:?} and {:?}", l, r);
+                                }
+                            }
+                        },
+                        Token::Star => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r) {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    literals.push_front(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl * nr)));
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers, found {:?} and {:?}", l, r);
+                                }
+                            }
+                        },
+                        Token::Slash => {
+                            let l = literals.pop_front();
+                            let r = literals.pop_front();
+                            match (&l,&r) {
+                                (Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl))), Some(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nr)))) => {
+                                    literals.push_front(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(nl / nr)));
+                                },
+                                (_,_) => {
+                                    println!("Expected numbers, found {:?} and {:?}", l, r);
+                                }
+                            }
+                        }
+                        _ => unimplemented!()
+                    }
+                },
+                IntermediateValue::Expression(ex) => {
+                    match ex {
+                        Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)) => {
+                            literals.push_front(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)));
+                        },
+                        Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s)) => {
+                            literals.push_front(Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s)));
+                        },
+                        Expr::BinaryExpr { left, operator, right} => {
+                            calc_stack.push_front(IntermediateValue::Operator(operator));
+                            calc_stack.push_front(IntermediateValue::Expression(*right));
+                            calc_stack.push_front(IntermediateValue::Expression(*left));
+                        },
+                        Expr::GroupingExpr(inner) => {
+                            calc_stack.push_front(IntermediateValue::Expression(*inner));
+                        },
+                        Expr::UnaryExpr { operator, right } => {
+                            calc_stack.push_front(IntermediateValue::Operator(operator));
+                            calc_stack.push_front(IntermediateValue::Expression(*right));
+                        }
+                        _ => panic!("NOT FOUND {:?}", ex)
+                    }
+                }
+            }
+        }
+        for l in literals.iter() {
+            println!("{:?}", l);
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+enum IntermediateValue {
+    Operator(Token),
+    Expression(Expr)
 }
 
 fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
@@ -72,3 +292,4 @@ fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
     let input = buffer.trim();
     Ok(input.to_string())
 }
+
