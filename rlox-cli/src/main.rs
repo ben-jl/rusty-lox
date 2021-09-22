@@ -4,7 +4,7 @@ extern crate rlox_parser;
 use std::io::Write;
 use std::io::BufRead;
 use rlox_contract::{ExprLiteralValue, Expr, Token, TokenContext, LiteralTokenType};
-use rlox_scanner::scan;
+use rlox_scanner::Scanner;
 use rlox_parser::parse;
 use rlox_parser::ast_printer::print;
 use clap::{App, SubCommand};
@@ -63,7 +63,7 @@ fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
 
 
 fn run_source_fragment(source: &str) -> std::io::Result<()> {
-    match scan(source) {
+    match Scanner::from_source(source).scan() {
         Ok(s) => {
             let pr = parse(*s);
 
