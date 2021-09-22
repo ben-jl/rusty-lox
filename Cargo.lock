@@ -117,6 +117,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "rlox-contract",
+ "rlox-interpreter",
  "rlox-parser",
  "rlox-scanner",
  "simplelog",
@@ -125,6 +126,16 @@ dependencies = [
 [[package]]
 name = "rlox-contract"
 version = "0.1.0"
+
+[[package]]
+name = "rlox-interpreter"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "rlox-contract",
+ "rlox-parser",
+ "rlox-scanner",
+]
 
 [[package]]
 name = "rlox-parser"

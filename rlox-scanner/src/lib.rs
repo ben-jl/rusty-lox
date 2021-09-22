@@ -14,6 +14,14 @@ impl Scanner {
         Scanner { source: src.to_string() }
     }
 
+    pub fn new() -> Scanner {
+        Scanner { source: "".to_string() }
+    }
+
+    pub fn add_source<B>(&mut self, src:B) -> () where B : ToString {
+        self.source.extend(src.to_string().chars());
+    }
+
     pub fn scan(&self) -> Result<Box<Vec<TokenContext>>> {
         let source = &self.source;
         if source.len() == 0 {

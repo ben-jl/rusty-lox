@@ -5,8 +5,9 @@ use std::io::Write;
 use std::io::BufRead;
 use rlox_contract::{ExprLiteralValue, Expr, Token, TokenContext, LiteralTokenType};
 use rlox_scanner::Scanner;
-use rlox_parser::parse;
+use rlox_parser::Parser;
 use rlox_parser::ast_printer::print;
+use rlox_interpreter::Interpreter;
 use clap::{App, SubCommand};
 use simplelog::{TermLogger,LevelFilter,Config,TerminalMode,ColorChoice};
 
@@ -25,57 +26,19 @@ fn main() -> std::io::Result<()> {
     } else {
         TermLogger::init(LevelFilter::Debug, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).expect("Unable to construct logger");
     };
-                        
+    let mut interpreter = Interpreter::default();      
     let stdin = std::io::stdin();
     if let Some(f) = matches.value_of("FILE") {
         let source = std::fs::read_to_string(std::path::Path::new(f))?;
-        run_source_fragment(&source)?;
+        interpreter.execute_source(source)?;
 
     } else {
-        loop {
-            print!("rlox] ");
-            std::io::stdout().flush()?;
-            let input = read_line_from_stdin(&stdin)?;
-            if input.trim() == "quit" {
-                println!("Exiting...\n");
-                break;
-            } else {
-                run_source_fragment(input.trim())?;
-            }
-        }
+        let mut stdout = std::io::stdout();
+        interpreter.start_repl(&stdin, &mut stdout)?;
 
-        
     }
 
     Ok(())
 }
 
 
-fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
-    let mut handle = stdin.lock();
-    let mut buffer = String::new();
-
-    handle.read_line(&mut buffer)?;
-
-    let input = buffer.trim();
-    Ok(input.to_string())
-}
-
-
-fn run_source_fragment(source: &str) -> std::io::Result<()> {
-    match Scanner::from_source(source).scan() {
-        Ok(s) => {
-            let pr = parse(*s);
-
-            match pr {
-                Ok(e) => println!("\n{}", print(&e)),
-                Err(pe) => println!("{}", pe)
-            };
-            Ok(())
-        },
-        Err(l) => {
-            println!("LEXICAL ERROR: {}" , l);
-            Ok(())
-        }
-    }
-}

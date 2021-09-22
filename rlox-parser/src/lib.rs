@@ -8,10 +8,24 @@ use rlox_contract::{Expr,ExprLiteralValue, TokenContext, Token, LiteralTokenType
 pub mod ast_printer;
 
 pub type Result<B> = std::result::Result<B, ParseError>;
-pub fn parse(tokens: Vec<TokenContext>) -> Result<Expr> {
-    let mut ts = VecDeque::from(tokens);
-    expression(&mut ts)
 
+pub struct Parser {
+    tokens: VecDeque<TokenContext>
+}
+
+impl Parser {
+    pub fn new() -> Parser {
+        let tokens = VecDeque::new();
+        Parser { tokens }
+    }
+
+    pub fn add_tokens(&mut self, tokens: Vec<TokenContext>) {
+        self.tokens.extend(tokens);
+    }
+
+    pub fn parse(&mut self) -> Result<Expr> {
+        expression(&mut self.tokens)
+    }
 }
 
 fn expression(tokens: &mut VecDeque<TokenContext>) -> Result<Expr> {
@@ -179,7 +193,7 @@ impl Display for ParseError {
 }
 #[cfg(test)]
 mod tests {
-    use super::{Token, TokenContext, parse};
+    use super::{Token, TokenContext, Parser};
     use super::ast_printer::print;
 
     #[test]
@@ -189,8 +203,9 @@ mod tests {
             TokenContext::new(Token::BangEqual, 1, 4, "!="), 
             TokenContext::new(Token::from_string("\"bye now\""), 1, 6, "\"bye now\"")
             ];
-        
-        let res = parse(ts).unwrap();
+        let mut parser = Parser::new();
+        parser.add_tokens(ts);
+        let res = parser.parse().unwrap();
 
         let r = print(&res);
         assert_eq!("3.00 BangEqual \"bye now\"",r);
@@ -205,8 +220,9 @@ mod tests {
             TokenContext::new(Token::Minus, 1, 9, "-"),
             TokenContext::new(Token::from_number(1.2), 1, 11, "1.2")
         ];
-
-        let res = parse(ts).unwrap();
+        let mut parser = Parser::new();
+        parser.add_tokens(ts);
+        let res = parser.parse().unwrap();
         let r = print(&res);
         
         assert_eq!("3.00 Plus 10.40 Minus 1.20", r);
@@ -221,8 +237,9 @@ mod tests {
             TokenContext::new(Token::Slash, 1, 9, "/"),
             TokenContext::new(Token::from_number(1.2), 1, 11, "1.2")
         ];
-
-        let res = parse(ts).unwrap();
+        let mut parser = Parser::new();
+        parser.add_tokens(ts);
+        let res = parser.parse().unwrap();
         let r = print(&res);
         
         assert_eq!("3.00 Star 10.40 Slash 1.20", r);

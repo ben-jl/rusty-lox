@@ -1,5 +1,5 @@
 [package]
-name = "rlox-cli"
+name = "rlox-interpreter"
 version = "0.1.0"
 edition = "2018"
 
@@ -9,6 +9,4 @@ edition = "2018"
 rlox-contract = { path = "../rlox-contract" }
 rlox-scanner  = { path = "../rlox-scanner"  }
 rlox-parser  = { path = "../rlox-parser"  }
-rlox-interpreter  = { path = "../rlox-interpreter"  }
-clap = "2.33.3"
-simplelog = "0.10.0"
+log = "0.4.14"
