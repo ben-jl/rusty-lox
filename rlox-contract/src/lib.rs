@@ -88,7 +88,8 @@ pub enum Expr {
     UnaryExpr { operator: Token, right: Box<Expr> },
     PrintStmt(Box<Expr>),
     ExprStmt(Box<Expr>),
-    VarDecl {name: Token, initializer: Box<Expr>  }
+    VarDecl {name: Token, initializer: Box<Expr>  },
+    VariableExpr(Token)
 }
 
 #[derive(Debug)]

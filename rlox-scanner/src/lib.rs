@@ -133,7 +133,7 @@ impl Scanner {
                                     let mut chunk = String::new();
                                     for (ix, nxt_c) in chars[current_idx..].iter().enumerate() {
                                         
-                                        if nxt_c.is_whitespace() {
+                                        if nxt_c.is_whitespace() || *nxt_c == ';' {
                                             break;
                                         } else if !nxt_c.is_alphanumeric() && *nxt_c != '_' {
                                             return Err(LexicalError::new(format!("UNEXPECTED CHAR {} at {}:{}", nxt_c, line, char_idx)));

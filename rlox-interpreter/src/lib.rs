@@ -7,7 +7,7 @@ use std::fmt::Display;
 use log::{error, debug};
 use rlox_contract::Token;
 use std::collections::VecDeque;
-use rlox_contract::{Expr,ExprLiteralValue};
+use rlox_contract::{Expr,ExprLiteralValue, LiteralTokenType};
 use std::io::Write;
 use std::io::BufRead;
 use std::rc::Rc;
@@ -16,17 +16,21 @@ use rlox_parser::Parser;
 use rlox_parser::ast_printer::print;
 
 pub type Result<B> = std::result::Result<B, InterpreterError>;
+mod environment;
+use environment::Environment;
 
 pub struct Interpreter {
     scanner : Scanner,
-    parser : Parser
+    parser : Parser,
+    environment: Environment
 }
 
 impl Interpreter {
     pub fn default() -> Interpreter {
         let scanner = Scanner::new();
         let parser = Parser::new();
-        Interpreter { scanner, parser }
+        let environment = Environment::new_root_environment();
+        Interpreter { scanner, parser, environment }
     }
 
     pub fn execute_source<B>(&mut self, source: B) -> std::io::Result<()> where B : ToString {
@@ -79,7 +83,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn interpret(&self, expr: Box<Expr>) -> Result<ComputedValue> {
+    fn interpret(&mut self, expr: Box<Expr>) -> Result<ComputedValue> {
         debug!("{:?}", expr);
         let v = match *expr {
             Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b)) => ComputedValue::BooleanValue(b),
@@ -158,8 +162,25 @@ impl Interpreter {
             },
             Expr::VarDecl { name, initializer } => {
                 let v = self.interpret(initializer)?;
-                println!("{:?} = {:?}", name, v);
-                v
+                match name {
+                    Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
+                        self.environment.put(&s, v);
+                        ComputedValue::NilValue
+                    },
+                    _ => return Err(InterpreterError::new("var decl requires identifier"))
+                }
+            },
+            Expr::VariableExpr(identifier) => {
+                match identifier {
+                    Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
+                        if let Some(v) = self.environment.get(&s) {
+                            v.clone()
+                        } else {
+                            ComputedValue::NilValue
+                        }
+                    },
+                    _ => return Err(InterpreterError::new("var lookup requires identifier"))
+                }
             }
         };
         debug!("Intermediate {:?}", v);
@@ -170,7 +191,7 @@ impl Interpreter {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 enum ComputedValue {
     BooleanValue(bool),
     NumberValue(f64),

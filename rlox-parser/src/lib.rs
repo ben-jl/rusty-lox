@@ -197,6 +197,7 @@ impl Parser {
                         Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(*n))
                     },
                     Token::Literal(LiteralTokenType::StringLiteral(s)) => Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s.to_string())),
+                    Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => Expr::VariableExpr(Token::Literal(LiteralTokenType::IdentifierLiteral(s.clone()))),
                     Token::Nil => Expr::LiteralExpr(ExprLiteralValue::NilLiteral),
                     Token::True => Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true)),
                     Token::False => Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)),

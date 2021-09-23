@@ -49,6 +49,9 @@ pub fn print(expr: &Expr) -> String {
                     Expr::VarDecl { name, initializer } => {
                         expr_stack.push(PrinterIntermediateResult::PrintAction(format!(" var {} = ", name)));
                         expr_stack.push(PrinterIntermediateResult::SubExpr(initializer));
+                    },
+                    Expr::VariableExpr(identifier) => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(format!(" {}", identifier)));
                     }
                 }
             },
