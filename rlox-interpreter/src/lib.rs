@@ -53,16 +53,14 @@ impl Interpreter {
             let sres = self.scanner.scan(&nxt);
             match sres {
                 Ok(ts) => {
-                    debug!("{:?}", &ts);
                     self.parser.add_tokens(ts.to_vec());
                     let pres = self.parser.parse();
-                    debug!("{:?}", pres);
                     match pres {
                         Ok(exprs) => { 
                             for expr in exprs {
                                 print!("\n");
                                 match self.interpret(Box::from(expr)) {
-                                    Err(e) => println!("{:?}", e),
+                                    Err(e) => error!("{}", e.msg),
                                     v => {
                                         println!("{:?}",v);
                                         println!("OK.")
@@ -70,11 +68,11 @@ impl Interpreter {
                                 }
                             }
                         },
-                        Err(pe) => { println!("{}", pe);}
+                        Err(pe) => { error!("{}", pe);}
                     }
                 },
                 Err(le) => {
-                    println!("{}", le);
+                    error!("{}", le)
 
                 }
             }
@@ -84,7 +82,6 @@ impl Interpreter {
     }
 
     fn interpret(&mut self, expr: Box<Expr>) -> Result<ComputedValue> {
-        debug!("{:?}", expr);
         let v = match *expr {
             Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b)) => ComputedValue::BooleanValue(b),
             Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => ComputedValue::NilValue,
@@ -180,6 +177,16 @@ impl Interpreter {
                         }
                     },
                     _ => return Err(InterpreterError::new("var lookup requires identifier"))
+                }
+            },
+            Expr::AssigmentExpr { name, value } => {
+                match name {
+                    Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
+                        let res = self.interpret(value)?;
+                        self.environment.assign(&s, res)?;
+                        ComputedValue::NilValue
+                    },
+                    _ => return Err(InterpreterError::new("expected assignment, got nothing"))
                 }
             }
         };

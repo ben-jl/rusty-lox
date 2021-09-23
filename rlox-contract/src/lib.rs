@@ -89,7 +89,8 @@ pub enum Expr {
     PrintStmt(Box<Expr>),
     ExprStmt(Box<Expr>),
     VarDecl {name: Token, initializer: Box<Expr>  },
-    VariableExpr(Token)
+    VariableExpr(Token),
+    AssigmentExpr { name: Token, value: Box<Expr> }
 }
 
 #[derive(Debug)]

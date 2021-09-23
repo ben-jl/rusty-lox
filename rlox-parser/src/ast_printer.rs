@@ -52,6 +52,10 @@ pub fn print(expr: &Expr) -> String {
                     },
                     Expr::VariableExpr(identifier) => {
                         expr_stack.push(PrinterIntermediateResult::PrintAction(format!(" {}", identifier)));
+                    },
+                    Expr::AssigmentExpr {name, value} => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(format!(" {}", name)));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(value));
                     }
                 }
             },

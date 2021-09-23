@@ -31,6 +31,16 @@ impl Environment {
     pub fn put(&mut self, identifier: &str, value: ComputedValue) -> () {
         self.variables.insert(identifier.to_string(),value);
     }
+
+    pub fn assign(&mut self, identifier: &str, value: ComputedValue) -> super::Result<()> {
+        if let Some(_) = self.get(identifier) {
+            self.put(identifier,value);
+            Ok(())
+        } else {
+            Err(super::InterpreterError::new("Attempted to assign value to undeclared identifier"))
+        }
+        
+    }
 }
 
 #[cfg(test)]

@@ -20,33 +20,48 @@ impl Parser {
     }
 
     pub fn add_tokens(&mut self, tokens: Vec<TokenContext>) {
-        debug!("{:?}", tokens);
         self.tokens.extend(tokens);
     }
 
     pub fn parse(&mut self) -> Result<Vec<Expr>> {
-        //expression(&mut self.tokens)
 
         let mut stmts = Vec::new();
+        let mut errors = Vec::new();
         while !self.eof() {
             match self.decl() {
                 Ok(smt) => { stmts.push(smt); },
-                Err(e) => {
-                    self.tokens.clear();
-                    return Err(e);
+                Err(e) => {               
+                    errors.push(e);                   
                 }
             }
             
         }
         self.tokens.clear();
-        Ok(stmts)
+        if errors.len() != 0 {
+            let mut msg = String::new();
+            for e in errors.iter() {
+                msg.push_str(&format!("{:?}\n", e.msg));
+            }
+
+            Err(ParseError::new(msg))
+        } else {
+            Ok(stmts)
+        }
     }
 
     fn decl(&mut self) -> Result<Expr> {
-        if let Some(Token::Var) = self.peek().map(|e| e.token()) {
+        let parse_result = if let Some(Token::Var) = self.peek().map(|e| e.token()) {
             self.var_decl()
         } else {
             self.stmt()
+        };
+
+        if let Err(e) = parse_result {
+            error!("Parse Error {}", e.msg);
+            self.synchronize()?;
+            Err(e)
+        } else {
+            parse_result
         }
     }
 
@@ -111,10 +126,28 @@ impl Parser {
             Err(ParseError::new(format!("Unexpected EOF, expected [equality]"))) 
         }
         else {
-            let r = self.equality();
+            let r = self.assignment();
             debug!("[ret] expression  {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
             r
         }
+    }
+
+    fn assignment(&mut self) -> Result<Expr> {
+        debug!("[ini] assignment  {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        let expr = self.equality()?;
+        if let Some(Token::Equal) = self.peek().map(|e| e.token()) {
+            self.consume(&Token::Equal)?;
+            let value = self.assignment()?;
+
+            if let Expr::VariableExpr(name) = expr {
+                Ok(Expr::AssigmentExpr { name, value: Box::from(value)})
+            } else {
+                return Err(ParseError::new("Invalid assignment target"));
+            }
+        }  else {
+            Ok(expr)
+        }
+        
     }
 
     fn equality(&mut self) -> Result<Expr> {
@@ -264,6 +297,31 @@ impl Parser {
                 }
             }
         }
+    }
+
+    fn synchronize(&mut self) -> Result<()> {
+        debug!("Syncronizing parser");
+        if self.eof() {
+            return Ok(())
+        }
+        let mut previous = self.tokens.pop_front().unwrap();
+        while !self.eof() {
+            if previous.token() == &Token::Semicolon { return Ok(()); }
+            match self.peek().map(|e| e.token()) {
+                Some(t) => match t {
+                    Token::Class|Token::Fun|Token::Var|Token::For|Token::If|Token::While|Token::Print|Token::Return => { 
+                        debug!("Found synchroization target {:?}", t);
+                        return Ok(())
+                    },
+                    _ => {
+                        debug!("Skipping token {:?}", previous);
+                        previous = self.tokens.pop_front().unwrap();
+                    }
+                },
+                None => {return Ok(());}
+            }
+        }
+        Ok(())
     }
 }
 
