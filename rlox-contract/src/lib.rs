@@ -90,7 +90,8 @@ pub enum Expr {
     ExprStmt(Box<Expr>),
     VarDecl {name: Token, initializer: Box<Expr>  },
     VariableExpr(Token),
-    AssigmentExpr { name: Token, value: Box<Expr> }
+    AssigmentExpr { name: Token, value: Box<Expr> },
+    BlockStmt(Vec<Box<Expr>>)
 }
 
 #[derive(Debug)]

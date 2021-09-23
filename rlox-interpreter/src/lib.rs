@@ -34,11 +34,25 @@ impl Interpreter {
     }
 
     pub fn execute_source<B>(&mut self, source: B) -> std::io::Result<()> where B : ToString {
-        let sres = self.scanner.scan(&source.to_string()).expect("scanner failed");
-        self.parser.add_tokens(*sres);
-        let pres = self.parser.parse().unwrap();
-        print!("\n");
-        println!("{:?}", pres);
+        let sres = self.scanner.scan(&source.to_string());
+        if let Ok(tokens) = sres {
+            self.parser.add_tokens(*tokens);
+            let parse_res = self.parser.parse();
+            if let Ok(exprs) = parse_res {
+                for e in exprs {
+                    let ie = self.interpret(Box::from(e));
+                    match &ie {
+                        Ok(cv) => if cv == &ComputedValue::NilValue { continue; } else { println!("{:?}", cv)},
+                        Err(e) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, e.msg.clone()));}
+                    }
+                }
+            }  else {
+                error!("{:?}", parse_res);
+            }
+        } else {
+            error!("{:?}", sres);
+        }
+
         Ok(())
     }
 
@@ -61,8 +75,8 @@ impl Interpreter {
                                 print!("\n");
                                 match self.interpret(Box::from(expr)) {
                                     Err(e) => error!("{}", e.msg),
-                                    v => {
-                                        println!("{:?}",v);
+                                    Ok(v) => {
+                                        if v == ComputedValue::NilValue { continue;} else {println!("{}",v)};
                                         println!("OK.")
                                     }
                                 }
@@ -97,7 +111,7 @@ impl Interpreter {
                     (Token::Bang, ComputedValue::NilValue) => ComputedValue::BooleanValue(true),
                     (Token::Bang, _) => ComputedValue::BooleanValue(true),
                     (Token::Minus, ComputedValue::NumberValue(n)) => ComputedValue::NumberValue(-1 as f64 * n),
-                    (Token::Minus, _) => return Err(InterpreterError::new(format!("Expected number, got {:?}", r))),
+                    (Token::Minus, _) => return Err(InterpreterError::new(format!("Expected number, got {}", r))),
                     _ => return Err(InterpreterError::new(format!("Expected unary operator, got {:?}", operator)))
                 }
             },
@@ -150,7 +164,8 @@ impl Interpreter {
             },
             Expr::PrintStmt(inner) => {
                 let res = self.interpret(inner)?;
-                println!("{:?}", res);
+
+                println!("{}", res);
                 ComputedValue::NilValue
             },
             Expr::ExprStmt(inner) => {
@@ -188,9 +203,17 @@ impl Interpreter {
                     },
                     _ => return Err(InterpreterError::new("expected assignment, got nothing"))
                 }
+            },
+            Expr::BlockStmt(decs) => {
+                self.environment = Environment::new_environment(Box::from(self.environment.clone()));
+                for stmt in decs {
+                    self.interpret(stmt)?;
+                }
+                let previous = self.environment.pop_scope()?;
+                self.environment = previous;
+                ComputedValue::NilValue
             }
         };
-        debug!("Intermediate {:?}", v);
         Ok(v)
 
     }
@@ -206,6 +229,19 @@ enum ComputedValue {
     NilValue
 }
 
+impl Display for ComputedValue {
+    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> { 
+        let stringly = match &self {
+            ComputedValue::BooleanValue(t) => format!("{}", t),
+            ComputedValue::StringValue(s) => format!("{}", s),
+            ComputedValue::NumberValue(n) => format!("{:.2}", n),
+            ComputedValue::NilValue => String::from("nil")
+        };
+        write!(f, "{}", stringly)?;
+        Ok(())
+     }
+}
 fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
     let mut handle = stdin.lock();
     let mut buffer = String::new();

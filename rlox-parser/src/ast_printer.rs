@@ -56,6 +56,13 @@ pub fn print(expr: &Expr) -> String {
                     Expr::AssigmentExpr {name, value} => {
                         expr_stack.push(PrinterIntermediateResult::PrintAction(format!(" {}", name)));
                         expr_stack.push(PrinterIntermediateResult::SubExpr(value));
+                    },
+                    Expr::BlockStmt(stmts) => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction("{".to_string()));
+                        for s in stmts {
+                            expr_stack.push(PrinterIntermediateResult::SubExpr(s));
+                        }
+                        expr_stack.push(PrinterIntermediateResult::PrintAction("}".to_string()));
                     }
                 }
             },

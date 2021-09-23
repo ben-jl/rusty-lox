@@ -45,6 +45,9 @@ impl Parser {
 
             Err(ParseError::new(msg))
         } else {
+            for s in stmts.iter() {
+                debug!("{:?}", s);
+            }
             Ok(stmts)
         }
     }
@@ -96,6 +99,7 @@ impl Parser {
         } else if let Some(tc) = self.peek() {
             match tc.token() {
                 Token::Print => self.print_stmt(),
+                Token::LeftBrace => self.block(),
                 _ => self.expression_stmt()
             }
         } else {
@@ -116,7 +120,19 @@ impl Parser {
         self.consume(&Token::Print)?;
         let e = self.expression()?;
         self.consume(&Token::Semicolon)?;
-        Ok(e)
+        Ok(Expr::PrintStmt(Box::from(e)))
+    }
+
+    fn block(&mut self) -> Result<Expr> {
+        let mut es = Vec::new();
+        self.consume(&Token::LeftBrace)?;
+        while !self.eof() && self.peek().map(|e| e.token()) != Some(&Token::RightBrace) {
+            let dec = self.decl()?;
+            es.push(Box::from(dec));
+        }
+
+        self.consume(&Token::RightBrace)?;
+        Ok(Expr::BlockStmt(es))
     }
 
     fn expression(&mut self) -> Result<Expr> {
