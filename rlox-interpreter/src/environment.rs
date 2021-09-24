@@ -18,8 +18,6 @@ impl Environment {
     }
 
     pub fn get(&self, identifier: &str) -> Option<&ComputedValue> {
-        debug!("GET {}", identifier);
-        debug!("{:?}", self.variables);
         if let Some(v) = self.variables.get(identifier) {
             Some(v)
         } else {
@@ -32,29 +30,28 @@ impl Environment {
     } 
 
     pub fn put(&mut self, identifier: &str, value: ComputedValue) -> () {
-        debug!("PUT {}={:?}", identifier, &value);
-        debug!("{:?}", self.variables);
         self.variables.insert(identifier.to_string(),value);
-        debug!("{:?}", self.variables);
     }
 
     pub fn assign(&mut self, identifier: &str, value: ComputedValue) -> super::Result<()> {
-        debug!("ASSIGN {}={:?}", identifier, &value);
-        debug!("{:?}", self.variables);
-        if let Some(_) = self.get(identifier) {
+        if let Some(_) = self.variables.get(identifier) {
             self.put(identifier,value);
-            debug!("{:?}", self.variables);
             Ok(())
-        } else {
-            Err(super::InterpreterError::new("Attempted to assign value to undeclared identifier"))
+        } 
+        else {
+            if let Some(pe) = &mut self.parent_scope {
+                pe.assign(identifier, value)?;
+                Ok(())
+            } else {
+                Err(super::InterpreterError::new("Attempted to assign value to undeclared identifier"))
+
+            }
         }
         
     }
 
     pub fn pop_scope(&mut self) -> super::Result<Environment> {
-        debug!("{:?}", self.variables);
         if let Some(pe) = &self.parent_scope {
-            debug!("{:?}", self.variables);
             Ok(*pe.clone())
         } else {
             Err(super::InterpreterError::new("Cannot pop root scope"))

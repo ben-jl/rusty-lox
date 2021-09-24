@@ -63,7 +63,18 @@ pub fn print(expr: &Expr) -> String {
                             expr_stack.push(PrinterIntermediateResult::SubExpr(s));
                         }
                         expr_stack.push(PrinterIntermediateResult::PrintAction("}".to_string()));
-                    }
+                    },
+                    Expr::IfStmt { condition, then_branch, else_branch } => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction("if ".to_string()));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(condition));
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(" {".to_string()));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(then_branch));
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(" } else {".to_string()));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(else_branch));
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(" }".to_string()));
+                    },
+                    Expr::LogicalExpr { left: _, operator: _, right: _} => unimplemented!(),
+                    Expr::WhileLoop { condition: _, body: _ } => unimplemented!()
                 }
             },
             PrinterIntermediateResult::PrintAction(s) => fin_stack.push(s)

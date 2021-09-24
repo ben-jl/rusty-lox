@@ -11,12 +11,13 @@ pub type Result<B> = std::result::Result<B, ParseError>;
 
 pub struct Parser {
     tokens: VecDeque<TokenContext>,
+    stack_depth: i32
 }
 
 impl Parser {
     pub fn new() -> Parser {
         let tokens = VecDeque::new();
-        Parser { tokens }
+        Parser { tokens, stack_depth: 0 }
     }
 
     pub fn add_tokens(&mut self, tokens: Vec<TokenContext>) {
@@ -45,20 +46,21 @@ impl Parser {
 
             Err(ParseError::new(msg))
         } else {
-            for s in stmts.iter() {
-                debug!("{:?}", s);
-            }
+    //        for s in stmts.iter() {
+//                // debug!("{:?}", s);
+  //          }
             Ok(stmts)
         }
     }
 
     fn decl(&mut self) -> Result<Expr> {
+        self.add_stack("decl", 1);
         let parse_result = if let Some(Token::Var) = self.peek().map(|e| e.token()) {
             self.var_decl()
         } else {
             self.stmt()
         };
-
+        self.add_stack("decl", -1);
         if let Err(e) = parse_result {
             error!("Parse Error {}", e.msg);
             self.synchronize()?;
@@ -69,7 +71,7 @@ impl Parser {
     }
 
     fn var_decl(&mut self) -> Result<Expr> {
-        debug!("[ini] var_decl     {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.add_stack("var_decl", 1);
         self.consume(&Token::Var)?;
         if let Some(tc) = self.tokens.pop_front() {
             if let Token::Literal(LiteralTokenType::IdentifierLiteral(_)) = &tc.token() {
@@ -78,8 +80,11 @@ impl Parser {
                     self.consume(&Token::Equal)?;
                     let initializer = self.expression()?;
                     self.consume(&Token::Semicolon)?;
+                    self.add_stack("var_decl", -1);
                     Ok(Expr::VarDecl { name: tc.token().clone(), initializer: Box::from(initializer) })    
                 } else {
+                    self.consume(&Token::Semicolon)?;
+                    self.add_stack("var_decl", -1);
                     Ok(Expr::VarDecl { name: tc.token().clone(), initializer: Box::from(Expr::LiteralExpr(ExprLiteralValue::NilLiteral))})
                 }
 
@@ -92,34 +97,143 @@ impl Parser {
     }
 
     fn stmt(&mut self) -> Result<Expr> {
-        debug!("[ini] stmt        {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.add_stack("stmt", 1);
         if self.eof() {
             error!("Unexpected EOF, expected [stmt]");
             Err(ParseError::new(format!("Unexpected EOF, expected [stmt]"))) 
         } else if let Some(tc) = self.peek() {
-            match tc.token() {
+            let r = match tc.token() {
                 Token::Print => self.print_stmt(),
                 Token::LeftBrace => self.block(),
+                Token::If => self.if_stmt(),
+                Token::While => self.while_loop(),
+                Token::For => self.for_loop(),
                 _ => self.expression_stmt()
-            }
+            }?;
+            self.add_stack("stmt", -1);
+            Ok(r)
         } else {
             error!("Unexpected EOF, expected [stmt]");
             Err(ParseError::new(format!("Unexpected EOF, expected [stmt]"))) 
         }
     }
 
+    fn for_loop(&mut self) -> Result<Expr> {
+        self.add_stack("for_loop", 1);
+        self.consume(&Token::For)?;
+        self.consume(&Token::LeftParen)?;
+        let initializer = match self.peek().map(|e| e.token()) {
+            Some(Token::Semicolon) => {
+                self.consume(&Token::Semicolon)?;
+                Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
+            },
+            Some(Token::Var) => {
+                let ini = self.var_decl()?;
+                ini
+            },
+            _ => {
+                let ini = self.expression_stmt()?;
+                ini
+            }
+        };
+
+        let mut condition = match self.peek().map(|e| e.token()) {
+            Some(Token::Semicolon) => {
+                self.consume(&Token::Semicolon)?;
+                Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
+            },
+            _ => {
+
+                let e = self.expression_stmt()?;
+                e
+            }
+        };
+
+
+        let increment = match self.peek().map(|e| e.token()) {
+            Some(Token::RightParen) => Expr::LiteralExpr(ExprLiteralValue::NilLiteral),
+            _ => {
+                let e = self.expression()?;
+                e
+            }
+        };
+        self.consume(&Token::RightParen)?;
+        let mut body = self.stmt()?;
+
+        match &increment {
+            Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => (),
+            inc => {
+                body = Expr::BlockStmt(vec![Box::from(body), Box::from(inc.clone())]);
+                ()
+            }
+        };
+
+        match condition {
+            Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => {
+                condition = Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(true));
+                ()
+            },
+            _ => {
+                ()
+            }
+        };
+        body = Expr::WhileLoop { condition: Box::from(condition), body: Box::from(body) };
+        match initializer {
+            Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => (),
+            _ => {
+                body = Expr::BlockStmt(vec![Box::from(initializer), Box::from(body)]);
+                ()
+            }
+        };
+        self.add_stack("for_loop", -1);
+        Ok(body)
+    }
+
+    fn while_loop(&mut self) -> Result<Expr> {
+        self.add_stack("while", 1);
+        self.consume(&Token::While)?;
+        self.consume(&Token::LeftParen)?;
+        let cond = self.expression()?;
+        self.consume(&Token::RightParen)?;
+        let body = self.stmt()?;
+        self.add_stack("while", -1);
+        Ok(Expr::WhileLoop { condition: Box::from(cond), body: Box::from(body) })
+    }
+
+    fn if_stmt(&mut self) -> Result<Expr> {
+        self.add_stack("if", 1);
+        self.consume(&Token::If)?;
+        self.consume(&Token::LeftParen)?;
+        let condition = self.expression()?;
+        self.consume(&Token::RightParen)?;
+        let then_branch = self.stmt()?;
+        if let Some(Token::Else) = self.peek().map(|e| e.token()) {
+            self.consume(&Token::Else)?;
+            let else_branch = self.stmt()?;
+            self.add_stack("if", -1);
+            Ok(Expr::IfStmt { condition: Box::from(condition), then_branch: Box::from(then_branch), else_branch: Box::from(else_branch)})
+        } else {
+            let else_branch = Expr::LiteralExpr(ExprLiteralValue::NilLiteral);
+            self.add_stack("if", -1);
+            Ok(Expr::IfStmt { condition: Box::from(condition), then_branch: Box::from(then_branch), else_branch: Box::from(else_branch)})
+
+        }
+    }
+
     fn expression_stmt(&mut self) -> Result<Expr> {
-        debug!("[ini] exprStmt    {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.add_stack("expr_stmt", 1);
         let e = self.expression()?;
         self.consume(&Token::Semicolon)?;
+        self.add_stack("expr_stmt", -1);
         Ok(e)
     }
 
     fn print_stmt(&mut self) -> Result<Expr> {
-        debug!("[ini] printStmt   {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.add_stack("print", 1);
         self.consume(&Token::Print)?;
         let e = self.expression()?;
         self.consume(&Token::Semicolon)?;
+        self.add_stack("print", -1);
         Ok(Expr::PrintStmt(Box::from(e)))
     }
 
@@ -136,107 +250,130 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr> {
-        debug!("[ini] expression  {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.add_stack("expr", 1);
         if self.eof() { 
             error!("Unexpected EOF, expected [equality]");
             Err(ParseError::new(format!("Unexpected EOF, expected [equality]"))) 
         }
         else {
             let r = self.assignment();
-            debug!("[ret] expression  {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+            self.add_stack("expr", -1);
             r
         }
     }
 
     fn assignment(&mut self) -> Result<Expr> {
-        debug!("[ini] assignment  {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
-        let expr = self.equality()?;
+        self.add_stack("assign", 1);
+        let expr = self.logic_or()?;
         if let Some(Token::Equal) = self.peek().map(|e| e.token()) {
             self.consume(&Token::Equal)?;
             let value = self.assignment()?;
 
             if let Expr::VariableExpr(name) = expr {
+                self.add_stack("assign", -1);
                 Ok(Expr::AssigmentExpr { name, value: Box::from(value)})
             } else {
                 return Err(ParseError::new("Invalid assignment target"));
             }
         }  else {
+            self.add_stack("assign", -1);
             Ok(expr)
         }
         
     }
 
-    fn equality(&mut self) -> Result<Expr> {
-        debug!("[ini] equality    {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+    fn logic_or(&mut self) -> Result<Expr> {
+        self.add_stack("or", 1);
+        let mut left = self.logic_and()?;
+        while let Some(Token::Or) = self.peek().map(|e| e.token()) {
+            self.consume(&Token::Or)?;
+            let right = self.logic_and()?;
+            left = Expr::new_logical_expr(left, Token::Or, right);
+        }
+        self.add_stack("or", -1);
+        Ok(left)
+    }
 
+    fn logic_and(&mut self) -> Result<Expr> {
+        self.add_stack("and", -1);
+        let mut left = self.equality()?;
+        while let Some(Token::And) = self.peek().map(|e| e.token()) {
+            self.consume(&Token::And)?;
+            let right = self.equality()?;
+            left = Expr::new_logical_expr(left, Token::And, right);
+        }
+        self.add_stack("and", -1);
+        Ok(left)
+    }
+
+    fn equality(&mut self) -> Result<Expr> {
+        self.add_stack("equal", 1);
         let mut l = self.comparison()?;
-        debug!("[ret] equality    {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
 
         while self.token_match(&Token::BangEqual) || self.token_match(&Token::EqualEqual) {
             let o = self.tokens.pop_front().unwrap();
             let r = self.comparison()?;
             l = Expr::new_binary_expr(l, o.token().clone(), r);
         }
-
+        self.add_stack("equal", -1);
         Ok(l)
     }
 
     fn comparison(&mut self) -> Result<Expr> {
-        debug!("[ini] comparison  {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
-
+        self.add_stack("compare", 1);
         let mut l = self.term()?;
-        debug!("[ret] comparison  {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
 
         while self.token_match(&Token::Less) || self.token_match(&Token::LessEqual) || self.token_match(&Token::Greater) || self.token_match(&Token::GreaterEqual) {
             let o = self.tokens.pop_front().unwrap();
             let r = self.term()?;
             l = Expr::new_binary_expr(l, o.token().clone(), r);
         }
+        self.add_stack("compare", -1);
         Ok(l)
     }
 
     fn term(&mut self) -> Result<Expr> {
-        debug!("[ini] term        {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.add_stack("term", 1);
         let mut l = self.factor()?;
-        debug!("[ret] term        {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
 
         while self.token_match(&Token::Minus) || self.token_match(&Token::Plus) {
             let o = self.tokens.pop_front().unwrap();
             let r = self.factor()?;
             l = Expr::new_binary_expr(l, o.token().clone(), r);
         }
+        self.add_stack("term", -1);
         Ok(l)
     }
 
     fn factor(&mut self) -> Result<Expr> {
-        debug!("[ini] factor      {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.add_stack("factor", 1);
         let mut l = self.unary()?;
-        debug!("[ret] factor      {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
         while self.token_match(&Token::Star) || self.token_match(&Token::Slash) {
             let o = self.tokens.pop_front().unwrap();
             let r = self.unary()?;
             l = Expr::new_binary_expr(l, o.token().clone(), r);
         }
+        self.add_stack("factor", -1);
         Ok(l)
     }
 
     fn unary(&mut self) -> Result<Expr> {
-        debug!("[ini] unary       {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
 
+        self.add_stack("unary", 1);
         if self.token_match(&Token::Bang) || self.token_match(&Token::Minus) {
             let o = self.tokens.pop_front().unwrap();
             let r = self.unary()?;
-            debug!("[ret] unary       {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+            self.add_stack("unary", -1);
             Ok(Expr::UnaryExpr { operator: o.token().clone(), right: Box::from(r) })
         } else {
             let p = self.primary()?;
-            debug!("[ret] unary       {:?}", self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+            self.add_stack("unary", -1);
             Ok(p)
         }
     }
 
     fn primary(&mut self) -> Result<Expr> {
-        debug!("[ini] primary     {:?}", &self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+        self.add_stack("primary", 1);
         if self.peek().is_none() {
             Err(ParseError::new("Unexpected EOF, expected [primary]"))
         } else {
@@ -261,7 +398,7 @@ impl Parser {
                         return Err(ParseError::new(format!("Unexpected {:?}, expected [primary]", t)));
                     }
                 };
-                debug!("[ret] primary     {:?}", &self.tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>());
+                self.add_stack("primary", -1);
                 Ok(res)
             } else {
                 return Err(ParseError::new("Unexpected EOF, expected [primary]"));
@@ -281,7 +418,6 @@ impl Parser {
     }
 
     fn token_match(&self, token: &Token) -> bool {
-        trace!("Searching for {:?} in {:?}", token, self.tokens.iter().map(|e| e.token()).collect::<Vec<&Token>>());
         if !self.eof() && self.peek().unwrap().token() == token {
             true
         } else {
@@ -338,6 +474,16 @@ impl Parser {
             }
         }
         Ok(())
+    }
+
+    fn add_stack(&mut self, method: &str, direction: i32) -> () {
+        self.stack_depth += 1 * direction;
+
+        let mut pad = String::new();
+        for _ in 0..self.stack_depth {
+            pad += "--";
+        }
+        trace!("{} {} {:?}", pad, method,&self.peek())
     }
 }
 

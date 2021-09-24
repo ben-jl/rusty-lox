@@ -24,7 +24,7 @@ fn main() -> std::io::Result<()> {
     if 0 == matches.occurrences_of("debug") {
         TermLogger::init(LevelFilter::Error, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).expect("Unable to construct logger");
     } else {
-        TermLogger::init(LevelFilter::Debug, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).expect("Unable to construct logger");
+        TermLogger::init(LevelFilter::Trace, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).expect("Unable to construct logger");
     };
     let mut interpreter = Interpreter::default();      
     let stdin = std::io::stdin();

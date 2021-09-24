@@ -212,6 +212,48 @@ impl Interpreter {
                 let previous = self.environment.pop_scope()?;
                 self.environment = previous;
                 ComputedValue::NilValue
+            },
+            Expr::IfStmt { condition, then_branch, else_branch} => {
+                let condition_result = self.interpret(condition)?;
+                let _ = match condition_result {
+                    ComputedValue::BooleanValue(false) => self.interpret(else_branch),
+                    ComputedValue::NilValue => self.interpret(else_branch),
+                    _ => self.interpret(then_branch)
+                }?;
+                ComputedValue::NilValue
+            },
+            Expr::LogicalExpr { left, operator, right } => {
+                let l = self.interpret(left)?;
+                match operator {
+                    Token::And => {
+                        match l {
+                            ComputedValue::NilValue | ComputedValue::BooleanValue(false) => l,
+                            _ => {
+                                let r = self.interpret(right)?;
+                                r
+                            }
+                        }
+                    },
+                    Token::Or => {
+                        match l {
+                            ComputedValue::NilValue | ComputedValue::BooleanValue(false) => {
+                                let r = self.interpret(right)?;
+                                r
+                            },
+                            _ => l
+                        }
+                    },
+                    _ => return Err(InterpreterError::new("Expected logical operator"))
+                }
+            },
+            Expr::WhileLoop { condition, body } => {
+                let mut cond_val = self.interpret(Box::from(condition.clone()))?;
+                while cond_val != ComputedValue::NilValue && cond_val != ComputedValue::BooleanValue(false) {
+                    self.interpret(Box::from(body.clone()))?;
+                    cond_val = self.interpret(Box::from(condition.clone()))?;
+                }
+
+                ComputedValue::NilValue
             }
         };
         Ok(v)

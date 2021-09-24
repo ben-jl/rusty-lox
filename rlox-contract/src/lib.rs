@@ -80,7 +80,7 @@ impl Display for Token {
      }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum Expr {
     BinaryExpr { left: Box<Expr>, operator: Token, right: Box<Expr> },
     GroupingExpr(Box<Expr>),
@@ -91,10 +91,13 @@ pub enum Expr {
     VarDecl {name: Token, initializer: Box<Expr>  },
     VariableExpr(Token),
     AssigmentExpr { name: Token, value: Box<Expr> },
-    BlockStmt(Vec<Box<Expr>>)
+    BlockStmt(Vec<Box<Expr>>),
+    IfStmt { condition: Box<Expr>, then_branch: Box<Expr>, else_branch: Box<Expr>},
+    LogicalExpr { left: Box<Expr>, operator: Token, right: Box<Expr>},
+    WhileLoop { condition: Box<Expr>, body: Box<Expr> }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum ExprLiteralValue {
     StringLiteral(String),
     NumberLiteral(f64),
@@ -111,5 +114,13 @@ impl Expr {
 
         let o = operator.clone();
         Expr::BinaryExpr { left: l, operator: o, right: r}
+    }
+
+    pub fn new_logical_expr(left: Expr, operator: Token, right: Expr) -> Expr {
+        let l = Box::from(left);
+        let r = Box::from(right);
+
+        let o = operator.clone();
+        Expr::LogicalExpr { left: l, operator: o, right: r}
     }
 }
