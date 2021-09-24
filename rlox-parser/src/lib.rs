@@ -55,11 +55,12 @@ impl Parser {
 
     fn decl(&mut self) -> Result<Expr> {
         self.add_stack("decl", 1);
-        let parse_result = if let Some(Token::Var) = self.peek().map(|e| e.token()) {
-            self.var_decl()
-        } else {
-            self.stmt()
+        let parse_result = match self.peek().map(|e| e.token()) {
+            Some(Token::Var) => self.var_decl(),
+            Some(Token::Fun) => self.function(),
+            _ => self.stmt()
         };
+
         self.add_stack("decl", -1);
         if let Err(e) = parse_result {
             error!("Parse Error {}", e.msg);
@@ -68,6 +69,37 @@ impl Parser {
         } else {
             parse_result
         }
+    }
+
+    fn function(&mut self) -> Result<Expr> {
+        self.consume(&Token::Fun)?;
+        let fn_name = match &self.peek().map(|e| e.token()) {
+            Some(Token::Literal(LiteralTokenType::IdentifierLiteral(s))) => Token::Literal(LiteralTokenType::IdentifierLiteral(s.clone())),
+            _ => return Err(ParseError::new("Expected identifier"))
+        };
+        self.consume(&Token::LeftParen)?;
+        let mut params = Vec::new();
+        loop {
+            if  Some(&Token::RightParen) != self.peek().map(|e| e.token()) {
+                self.consume(&Token::RightParen)?;
+                let _ = match &self.peek().map(|e| e.token()) {
+                    Some(Token::Literal(LiteralTokenType::IdentifierLiteral(s))) => {
+                        params.push(Token::Literal(LiteralTokenType::IdentifierLiteral(s.clone())));
+                    },
+                    _ => return Err(ParseError::new("Expected identifier"))
+                };
+
+                if !self.token_match(&Token::Comma) {
+                    break;
+                } else {
+                    self.consume(&Token::Comma)?;
+                }
+            }
+        }
+        self.consume(&Token::RightParen)?;
+        let body = self.block()?;
+        Ok(Expr::FunctionExpr { name: fn_name, params, body: Box::from(body)})
+        
     }
 
     fn var_decl(&mut self) -> Result<Expr> {
@@ -366,10 +398,39 @@ impl Parser {
             self.add_stack("unary", -1);
             Ok(Expr::UnaryExpr { operator: o.token().clone(), right: Box::from(r) })
         } else {
-            let p = self.primary()?;
+            let p = self.call()?;
             self.add_stack("unary", -1);
             Ok(p)
         }
+    }
+    fn call(&mut self) -> Result<Expr> {
+        let mut expr = self.primary()?;
+
+        while let Some(Token::LeftParen) = self.peek().map(|e| e.token()) {
+            self.consume(&Token::LeftParen)?;
+            expr = self.finish_call(expr)?;
+        }
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, expr: Expr) -> Result<Expr> {
+        let mut args = Vec::new();
+        if Some(&Token::RightParen) != self.peek().map(|e| e.token()) {
+            loop {
+                
+                let next_arg = self.expression()?;
+                args.push(next_arg);
+                if let Some(Token::Comma) = self.peek().map(|e| e.token()) {
+                    self.consume(&Token::Comma)?;
+
+                } else {
+                    break;
+                }
+            }
+        } 
+        self.consume(&Token::RightParen)?;
+        Ok(Expr::CallExpr { callee: Box::from(expr), paren: Token::RightParen, arguments: args.iter().map(|e| Box::from(e.clone())).collect() })
+        
     }
 
     fn primary(&mut self) -> Result<Expr> {

@@ -17,6 +17,7 @@ use rlox_parser::ast_printer::print;
 
 pub type Result<B> = std::result::Result<B, InterpreterError>;
 mod environment;
+mod callable;
 use environment::Environment;
 
 pub struct Interpreter {
@@ -254,12 +255,30 @@ impl Interpreter {
                 }
 
                 ComputedValue::NilValue
+            },
+            Expr::CallExpr { callee, paren, arguments } => {
+                let c = self.interpret(callee)?;
+                let mut resolved_args = Vec::new();
+                for a in arguments {
+                    let result = self.interpret(a)?;
+                    resolved_args.push(result);
+                }
+                unimplemented!()
+            },
+            Expr::FunctionExpr { name, params, body } => {
+                unimplemented!();
             }
         };
         Ok(v)
 
     }
 
+    fn interpret_with_env(&mut self, body: Box<Expr>,  env: Environment) -> Result<ComputedValue> {
+        self.environment = env;
+        let r = self.interpret(body)?;
+        self.environment.pop_scope()?;
+        Ok(r)
+    }
 }
 
 

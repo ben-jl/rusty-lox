@@ -57,6 +57,14 @@ impl Environment {
             Err(super::InterpreterError::new("Cannot pop root scope"))
         }
     }
+
+    pub fn get_global_env(self) -> Environment {
+        if self.parent_scope.is_some() {
+            self.parent_scope.unwrap().get_global_env().clone()
+        } else {
+            self
+        }
+    }
 }
 
 #[cfg(test)]

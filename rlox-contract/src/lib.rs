@@ -94,7 +94,9 @@ pub enum Expr {
     BlockStmt(Vec<Box<Expr>>),
     IfStmt { condition: Box<Expr>, then_branch: Box<Expr>, else_branch: Box<Expr>},
     LogicalExpr { left: Box<Expr>, operator: Token, right: Box<Expr>},
-    WhileLoop { condition: Box<Expr>, body: Box<Expr> }
+    WhileLoop { condition: Box<Expr>, body: Box<Expr> },
+    CallExpr { callee: Box<Expr>, paren: Token, arguments: Vec<Box<Expr>>},
+    FunctionExpr { name: Token, params: Vec<Token>, body: Box<Expr>}
 }
 
 #[derive(Debug,Clone)]
