@@ -96,8 +96,10 @@ pub enum Expr {
     LogicalExpr { left: Box<Expr>, operator: Token, right: Box<Expr>},
     WhileLoop { condition: Box<Expr>, body: Box<Expr> },
     CallExpr { callee: Box<Expr>, paren: Token, arguments: Vec<Box<Expr>>},
-    FunctionExpr { name: Token, params: Vec<Token>, body: Box<Expr>}
+    FunctionExpr { name: Token, params: Vec<Token>, body: Box<Expr>},
+    Return(Token, Box<Expr>)
 }
+
 
 #[derive(Debug,Clone, PartialEq)]
 pub enum ExprLiteralValue {
@@ -130,6 +132,14 @@ impl Expr {
 impl Display for Expr {
     
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> { 
-        write!(f, "{:?}", self)
+        let st = match self {
+            Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => "nil".to_string(),
+            Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b)) => format!("{}", b),
+            Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)) => format!("{:.2}", n),
+            Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s)) => format!("{}", s.replace('"', "")),
+            _ => "<expression>".to_string()
+        };
+        write!(f, "{}", st)?;
+        Ok(())
      }
 }

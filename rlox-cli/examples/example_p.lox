@@ -44,6 +44,6 @@ while (x  > 0.0) {
 var foo = 0;
 var temp =nil;
 
-for (var foo = 1; foo <= 10000; foo = foo + 1) {
+for (var foo = 1; foo <= 10; foo = foo + 1) {
     print foo;
 }

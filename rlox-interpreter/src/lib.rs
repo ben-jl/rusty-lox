@@ -17,20 +17,30 @@ use rlox_parser::ast_printer::print;
 
 pub type Result<B> = std::result::Result<B, InterpreterError>;
 mod environment;
-use environment::Scope;
+use environment::ScopeEnvironment;
+mod callable;
+use callable::Callable;
 
 pub struct Interpreter {
     scanner : Scanner,
     parser : Parser,
-    scope: Scope
+    pub scope: ScopeEnvironment,
+    short_circuit_value: Option<Expr>
 }
 
 impl Interpreter {
     pub fn default() -> Interpreter {
         let scanner = Scanner::new();
         let parser = Parser::new();
-        let scope = Scope::new();
-        Interpreter { scanner, parser, scope }
+        let scope = ScopeEnvironment::new_root();
+        Interpreter { scanner, parser, scope, short_circuit_value: None }
+    }
+
+    pub fn with_env(env: ScopeEnvironment) -> Interpreter {
+        let scanner = Scanner::new();
+        let parser = Parser::new();
+        let scope = env;
+        Interpreter {scanner, parser, scope, short_circuit_value: None }
     }
 
     pub fn execute_source<B>(&mut self, source: B) -> std::io::Result<()> where B : ToString {
@@ -96,6 +106,9 @@ impl Interpreter {
     }
 
     fn interpret(&mut self, expr: Box<Expr>) -> Result<Expr> {
+        if let Some(rising_value) = &self.short_circuit_value {
+            return Ok(rising_value.clone())
+        }
         let v = match *expr {
             Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b)) => bool_literal(b),
             Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => Expr::LiteralExpr(ExprLiteralValue::NilLiteral),
@@ -173,6 +186,7 @@ impl Interpreter {
                 res
             },
             Expr::VarDecl { name, initializer } => {
+                //dbg!(&name, &initializer);
                 let v = self.interpret(initializer)?;
                 match name {
                     Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
@@ -183,11 +197,11 @@ impl Interpreter {
                 }
             },
             Expr::VariableExpr(identifier) => {
+                //dbg!(&identifier);
                 match identifier {
                     Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
                         if let Some(v) = self.scope.get(&s) {
-                            let v1 = self.interpret(v)?;
-                            v1
+                            v.clone()
                         } else {
                             Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
                         }
@@ -196,6 +210,7 @@ impl Interpreter {
                 }
             },
             Expr::AssigmentExpr { name, value } => {
+                //dbg!(&name, &value);
                 let v = self.interpret(value)?;
                 match name {
                     Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
@@ -207,8 +222,9 @@ impl Interpreter {
                 }
             },
             Expr::BlockStmt(decs) => {
-                self.scope.create_child();
+                self.scope.new_child();
                 for stmt in decs {
+                    //dbg!(&stmt);
                     self.interpret(stmt)?;
                 }
                 self.scope.pop_scope()?;
@@ -256,17 +272,49 @@ impl Interpreter {
 
                 Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
             },
-            Expr::CallExpr { callee, paren, arguments } => {
+            Expr::CallExpr { callee, paren: _, arguments } => {
+                //dbg!(&callee, &arguments);
                 let c = self.interpret(callee)?;
                 let mut resolved_args = Vec::new();
                 for a in arguments {
+                    //dbg!(&a);
                     let result = self.interpret(a)?;
                     resolved_args.push(result);
                 }
-                unimplemented!()
+                if let Expr::FunctionExpr{name, params, body} = c {
+                    let f = Expr::FunctionExpr { name,params,body };
+                    self.scope.set_to_root();
+                    let v = f.call(&mut self.scope, resolved_args)?;
+                    self.scope.set_to_previous();
+                    v
+                } else {
+                    return Err(InterpreterError::new("uncallable expr"))
+                }
             },
             Expr::FunctionExpr { name, params, body } => {
-                unimplemented!();
+                //dbg!(&name, &params, &body);
+                if let Token::Literal(LiteralTokenType::IdentifierLiteral(s)) = name.clone() {
+                    self.scope.declare(&s, Box::from(Expr::FunctionExpr { name, params, body}))?;
+                    Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
+
+                } else {
+                    return Err(InterpreterError::new("function name not identifier"))
+                }
+            },
+            Expr::Return(_, val) => {
+                dbg!(&val);
+                let v = if &Expr::LiteralExpr(ExprLiteralValue::NilLiteral) != val.as_ref() {
+                    let res = self.interpret(val)?;
+                    res
+                } else {
+                    Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
+                };
+                if &Expr::LiteralExpr(ExprLiteralValue::NilLiteral) != &v {
+                    self.scope.set_to_previous();
+                    self.short_circuit_value = Some(v.clone());
+                }
+                
+                v
             }
         };
         Ok(v)

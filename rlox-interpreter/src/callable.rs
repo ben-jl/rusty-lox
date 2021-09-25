@@ -1,8 +1,8 @@
-use super::{Expr, ExprLiteralValue, ComputedValue};
-
-trait Callable {
+use super::{Expr, ExprLiteralValue};
+use super::environment::{ScopeEnvironment, Scope};
+pub trait Callable {
     fn arity(&self) -> super::Result<usize>;
-    fn call(&self, interpreter: &mut super::Interpreter, args: Vec<ComputedValue>) -> super::Result<ComputedValue>;
+    fn call(&self, global_scope: &mut super::ScopeEnvironment, args: Vec<Expr>) -> super::Result<Expr>;
 }
 
 impl Callable for Expr {
@@ -13,30 +13,33 @@ impl Callable for Expr {
             _ => Err(super::InterpreterError::new("expected callable expression"))
         }
      }
-    fn call(&self, i: &mut super::Interpreter, args: std::vec::Vec<ComputedValue>) -> std::result::Result<ComputedValue, super::InterpreterError> { 
-        match self {
-            Expr::FunctionExpr { name, params, body } => {
-                let globals = i.environment.clone().get_global_env();
-                let mut fn_env = super::Environment::new_environment(Box::from(globals.clone()));
-                for (i, p) in params.iter().enumerate() {
-                    let a = match args.get(i) {
-                        Some(ab) => ab,
-                        _ => {
-                            return Err(super::InterpreterError::new("args length and param length mismatch"));
-                        }
-                    };
-
-                    if let super::Token::Literal(super::LiteralTokenType::IdentifierLiteral(s)) = p {
-                        fn_env.put(&s, a.clone());
+    fn call(&self, global_scope: &mut super::ScopeEnvironment, args: std::vec::Vec<Expr>) -> std::result::Result<Expr, super::InterpreterError> { 
+        if let Expr::FunctionExpr {name: _, params, body } = &self {
+            let arity = self.arity()?;
+            dbg!(&params, &body);
+            if arity != args.len() {
+                Err(super::InterpreterError::new("Arity didn't match arg length"))
+            } else {
+                global_scope.new_child();
+                for (i,a) in args.iter().enumerate() {
+                    dbg!(&i, &a);
+                    if let super::Token::Literal(super::LiteralTokenType::IdentifierLiteral(s)) = &params[i] {
+                        global_scope.declare(&s, Box::from(a.clone()))?;
                     } else {
-                        return Err(super::InterpreterError::new("expected literal as function param"));
+                        return Err(super::InterpreterError::new("Invalid param type, must be identifier"));
                     }
                 }
-
-                let r = i.interpret_with_env(body.clone(), fn_env.clone())?;
-                Ok(r)
-            },
-            _ => Err(super::InterpreterError::new("expected callable expression"))
+                dbg!(&global_scope);
+                let mut i = super::Interpreter::with_env(global_scope.clone());
+                let e = i.interpret(body.clone())?; 
+                dbg!(&e);
+                Ok(e)
+            }
+            
+            
+         
+        } else {
+            Err(super::InterpreterError::new(format!("Tried to call an uncallable expression {:?}", &self)))
         }
      }
 }

@@ -77,14 +77,15 @@ impl Parser {
             Some(Token::Literal(LiteralTokenType::IdentifierLiteral(s))) => Token::Literal(LiteralTokenType::IdentifierLiteral(s.clone())),
             _ => return Err(ParseError::new("Expected identifier"))
         };
+        self.tokens.pop_front();
         self.consume(&Token::LeftParen)?;
         let mut params = Vec::new();
         loop {
             if  Some(&Token::RightParen) != self.peek().map(|e| e.token()) {
-                self.consume(&Token::RightParen)?;
                 let _ = match &self.peek().map(|e| e.token()) {
                     Some(Token::Literal(LiteralTokenType::IdentifierLiteral(s))) => {
                         params.push(Token::Literal(LiteralTokenType::IdentifierLiteral(s.clone())));
+                        self.tokens.pop_front();
                     },
                     _ => return Err(ParseError::new("Expected identifier"))
                 };
@@ -140,6 +141,7 @@ impl Parser {
                 Token::If => self.if_stmt(),
                 Token::While => self.while_loop(),
                 Token::For => self.for_loop(),
+                Token::Return => self.return_stmt(),
                 _ => self.expression_stmt()
             }?;
             self.add_stack("stmt", -1);
@@ -249,6 +251,26 @@ impl Parser {
             self.add_stack("if", -1);
             Ok(Expr::IfStmt { condition: Box::from(condition), then_branch: Box::from(then_branch), else_branch: Box::from(else_branch)})
 
+        }
+    }
+
+    fn return_stmt(&mut self) -> Result<Expr> {
+        if self.token_match(&Token::Return) {
+            let r = self.tokens.pop_front().ok_or(ParseError::new("No tokens to pop"))?;
+            let val = match self.peek().map(|e| e.token()) {
+                Some(Token::Semicolon) => {
+                    unimplemented!()
+                },
+                _ => {
+                    let v = self.expression()?;
+                    v
+                }
+            };
+            self.consume(&Token::Semicolon)?;
+            Ok(Expr::Return(r.token().clone(), Box::from(val)))
+
+        } else {
+            Err(ParseError::new("Expected return".to_string()))
         }
     }
 

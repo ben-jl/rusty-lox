@@ -29,7 +29,7 @@ pub fn print(expr: &Expr) -> String {
                         
                     },
                     Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s)) => {
-                        expr_stack.push(PrinterIntermediateResult::PrintAction(s.clone()));
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(s.clone().replace('"', "")));
                     },
                     Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)) => {
                         expr_stack.push(PrinterIntermediateResult::PrintAction(format!("{:.2}", n)));
@@ -75,8 +75,34 @@ pub fn print(expr: &Expr) -> String {
                     },
                     Expr::LogicalExpr { left: _, operator: _, right: _} => unimplemented!(),
                     Expr::WhileLoop { condition: _, body: _ } => unimplemented!(),
-                    _ => unimplemented!()
+                    Expr::CallExpr { callee, paren, arguments } => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction("CALL ".to_string()));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(callee));
+                        expr_stack.push(PrinterIntermediateResult::PrintAction("(\n".to_string()));
+                        for a in arguments {
+                            expr_stack.push(PrinterIntermediateResult::SubExpr(a));
+                            expr_stack.push(PrinterIntermediateResult::PrintAction(",".to_string()));
+                        }
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(");\n".to_string()));
+                    },
+                    Expr::FunctionExpr { name, params, body } => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(format!("FUN {:?}(", name)));
+                        for p in params {
+                            expr_stack.push(PrinterIntermediateResult::PrintAction(format!("{:?}", p)));
+
+                        }
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(")\n".to_string()));
+                        expr_stack.push(PrinterIntermediateResult::PrintAction("{\n".to_string()));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(body));
+                        expr_stack.push(PrinterIntermediateResult::PrintAction("}\n".to_string()));
+                    },
+                    Expr::Return(_, inner) => {
+                        expr_stack.push(PrinterIntermediateResult::PrintAction("return ".to_string()));
+                        expr_stack.push(PrinterIntermediateResult::SubExpr(inner));
+                        expr_stack.push(PrinterIntermediateResult::PrintAction(";\n".to_string()));
+                    }
                 }
+                
             },
             PrinterIntermediateResult::PrintAction(s) => fin_stack.push(s)
         }
