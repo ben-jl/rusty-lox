@@ -1,19 +1,15 @@
 extern crate rlox_contract;
 extern crate rlox_scanner;
 extern crate rlox_parser;
-use std::iter::FromIterator;
 use std::error::Error;
 use std::fmt::Display;
-use log::{error, debug};
+use log::{error};
 use rlox_contract::Token;
-use std::collections::VecDeque;
 use rlox_contract::{Expr,ExprLiteralValue, LiteralTokenType};
 use std::io::Write;
 use std::io::BufRead;
-use std::rc::Rc;
 use rlox_scanner::Scanner;
 use rlox_parser::Parser;
-use rlox_parser::ast_printer::print;
 
 pub type Result<B> = std::result::Result<B, InterpreterError>;
 mod environment;

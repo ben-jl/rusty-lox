@@ -1,5 +1,5 @@
 extern crate rlox_contract;
-use rlox_contract::{Expr, Token, ExprLiteralValue};
+use rlox_contract::{Expr, ExprLiteralValue};
 
 pub fn print(expr: &Expr) -> String {
     let mut expr_stack = vec![];
@@ -75,7 +75,7 @@ pub fn print(expr: &Expr) -> String {
                     },
                     Expr::LogicalExpr { left: _, operator: _, right: _} => unimplemented!(),
                     Expr::WhileLoop { condition: _, body: _ } => unimplemented!(),
-                    Expr::CallExpr { callee, paren, arguments } => {
+                    Expr::CallExpr { callee, paren:_, arguments } => {
                         expr_stack.push(PrinterIntermediateResult::PrintAction("CALL ".to_string()));
                         expr_stack.push(PrinterIntermediateResult::SubExpr(callee));
                         expr_stack.push(PrinterIntermediateResult::PrintAction("(\n".to_string()));

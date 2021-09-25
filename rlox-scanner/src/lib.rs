@@ -79,7 +79,7 @@ impl Scanner {
                             '/' => {
                                 
                                 if chars.len() > current_idx + 1 && chars[current_idx + 1] == '/' {
-                                    for (idx, j) in chars[current_idx..].iter().enumerate() {
+                                    for (_idx, j) in chars[current_idx..].iter().enumerate() {
                                         current_idx+=1;   
                                         
                                         if *j == '\n' {
@@ -98,7 +98,7 @@ impl Scanner {
                                 if c.is_digit(10) {
                                     let mut num_str = String::new();
     
-                                    for (ix, nxt_c) in chars[current_idx..].iter().enumerate() {
+                                    for (_ix, nxt_c) in chars[current_idx..].iter().enumerate() {
                                         let wc = nxt_c.clone();
                                         if !(wc.is_digit(10)) && wc != '.' {
                                             break;
@@ -117,7 +117,7 @@ impl Scanner {
                                     }
                                     chunk.push('"');
                                     let start_char_idx = char_idx;
-                                    for (ix, nxt_c) in chars[current_idx+1..].iter().enumerate() {
+                                    for (_ix, nxt_c) in chars[current_idx+1..].iter().enumerate() {
                                         chunk.push(nxt_c.clone());
                                         char_idx += 1;
                                         if nxt_c.clone() == '"' {
@@ -131,7 +131,7 @@ impl Scanner {
                                     TokenContext::new(Token::Literal(LiteralTokenType::StringLiteral(chunk.clone())), line, start_char_idx, chunk.clone())
                                 } else {
                                     let mut chunk = String::new();
-                                    for (ix, nxt_c) in chars[current_idx..].iter().enumerate() {
+                                    for (_ix, nxt_c) in chars[current_idx..].iter().enumerate() {
                                         
                                         if nxt_c.is_whitespace() || *nxt_c == ';' || *nxt_c == '(' || *nxt_c == ')' || *nxt_c == ',' {
                                             break;

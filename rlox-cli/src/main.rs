@@ -1,14 +1,10 @@
 extern crate rlox_contract;
 extern crate rlox_scanner;
 extern crate rlox_parser;
-use std::io::Write;
-use std::io::BufRead;
-use rlox_contract::{ExprLiteralValue, Expr, Token, TokenContext, LiteralTokenType};
-use rlox_scanner::Scanner;
-use rlox_parser::Parser;
-use rlox_parser::ast_printer::print;
+
+
 use rlox_interpreter::Interpreter;
-use clap::{App, SubCommand};
+use clap::{App,};
 use simplelog::{TermLogger,LevelFilter,Config,TerminalMode,ColorChoice};
 
 fn main() -> std::io::Result<()> {

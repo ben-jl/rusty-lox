@@ -1,5 +1,4 @@
 use super::{Expr, ExprLiteralValue};
-use super::environment::{ScopeEnvironment, Scope};
 pub trait Callable {
     fn arity(&self) -> super::Result<usize>;
     fn call(&self, global_scope: &super::ScopeEnvironment, args: Vec<Expr>) -> super::Result<Expr>;
