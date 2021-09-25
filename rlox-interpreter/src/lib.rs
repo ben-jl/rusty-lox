@@ -25,7 +25,6 @@ pub struct Interpreter {
     scanner : Scanner,
     parser : Parser,
     pub scope: ScopeEnvironment,
-    short_circuit_value: Option<Expr>
 }
 
 impl Interpreter {
@@ -33,14 +32,14 @@ impl Interpreter {
         let scanner = Scanner::new();
         let parser = Parser::new();
         let scope = ScopeEnvironment::new_root();
-        Interpreter { scanner, parser, scope, short_circuit_value: None }
+        Interpreter { scanner, parser, scope}
     }
 
     pub fn with_env(env: ScopeEnvironment) -> Interpreter {
         let scanner = Scanner::new();
         let parser = Parser::new();
         let scope = env;
-        Interpreter {scanner, parser, scope, short_circuit_value: None }
+        Interpreter {scanner, parser, scope }
     }
 
     pub fn execute_source<B>(&mut self, source: B) -> std::io::Result<()> where B : ToString {
@@ -106,9 +105,7 @@ impl Interpreter {
     }
 
     fn interpret(&mut self, expr: Box<Expr>) -> Result<Expr> {
-        if let Some(rising_value) = &self.short_circuit_value {
-            return Ok(rising_value.clone())
-        }
+
         let v = match *expr {
             Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b)) => bool_literal(b),
             Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => Expr::LiteralExpr(ExprLiteralValue::NilLiteral),
@@ -227,7 +224,7 @@ impl Interpreter {
                     //dbg!(&stmt);
                     self.interpret(stmt)?;
                 }
-                self.scope.pop_scope()?;
+                self.scope.set_to_previous();
                 Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
             },
             Expr::IfStmt { condition, then_branch, else_branch} => {
@@ -283,9 +280,9 @@ impl Interpreter {
                 }
                 if let Expr::FunctionExpr{name, params, body} = c {
                     let f = Expr::FunctionExpr { name,params,body };
-                    self.scope.set_to_root();
-                    let v = f.call(&mut self.scope, resolved_args)?;
-                    self.scope.set_to_previous();
+
+                    let v = f.call(self.get_scope(), resolved_args)?;
+                    
                     v
                 } else {
                     return Err(InterpreterError::new("uncallable expr"))
@@ -302,25 +299,25 @@ impl Interpreter {
                 }
             },
             Expr::Return(_, val) => {
-                dbg!(&val);
+                //println!("returning ... {}", &self.scope);
                 let v = if &Expr::LiteralExpr(ExprLiteralValue::NilLiteral) != val.as_ref() {
                     let res = self.interpret(val)?;
                     res
                 } else {
                     Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
                 };
-                if &Expr::LiteralExpr(ExprLiteralValue::NilLiteral) != &v {
-                    self.scope.set_to_previous();
-                    self.short_circuit_value = Some(v.clone());
-                }
-                
-                v
+
+                //dbg!(&v);
+                return Err(InterpreterError::new_return(Some(v)));
             }
         };
         Ok(v)
 
     }
 
+    pub fn get_scope(&self) -> &ScopeEnvironment {
+        &self.scope
+    }
     
 }
 
@@ -346,12 +343,21 @@ fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
 
 #[derive(Debug)]
 pub struct InterpreterError {
-    msg: String
+    msg: String,
+    returned: Option<Expr>
 }
 
 impl InterpreterError {
     pub fn new<B : ToString>(msg:B) -> InterpreterError {
-        InterpreterError { msg: msg.to_string()}
+        InterpreterError { msg: msg.to_string(), returned: None}
+    }
+
+    pub fn return_val(&self) -> Option<&Expr> {
+        self.returned.as_ref()
+    }
+
+    pub fn new_return(r:Option<Expr>) -> InterpreterError{
+        InterpreterError { msg: "".to_string(), returned: r}
     }
 }
 impl Error for InterpreterError {}

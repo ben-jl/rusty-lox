@@ -2,7 +2,7 @@ use super::{Expr, ExprLiteralValue};
 use super::environment::{ScopeEnvironment, Scope};
 pub trait Callable {
     fn arity(&self) -> super::Result<usize>;
-    fn call(&self, global_scope: &mut super::ScopeEnvironment, args: Vec<Expr>) -> super::Result<Expr>;
+    fn call(&self, global_scope: &super::ScopeEnvironment, args: Vec<Expr>) -> super::Result<Expr>;
 }
 
 impl Callable for Expr {
@@ -13,26 +13,31 @@ impl Callable for Expr {
             _ => Err(super::InterpreterError::new("expected callable expression"))
         }
      }
-    fn call(&self, global_scope: &mut super::ScopeEnvironment, args: std::vec::Vec<Expr>) -> std::result::Result<Expr, super::InterpreterError> { 
+    fn call(&self, global_scope: &super::ScopeEnvironment, args: std::vec::Vec<Expr>) -> std::result::Result<Expr, super::InterpreterError> { 
         if let Expr::FunctionExpr {name: _, params, body } = &self {
+            
             let arity = self.arity()?;
-            dbg!(&params, &body);
             if arity != args.len() {
                 Err(super::InterpreterError::new("Arity didn't match arg length"))
             } else {
-                global_scope.new_child();
+
+                let mut fun_scope = global_scope.clone();
+
                 for (i,a) in args.iter().enumerate() {
-                    dbg!(&i, &a);
+                    
                     if let super::Token::Literal(super::LiteralTokenType::IdentifierLiteral(s)) = &params[i] {
-                        global_scope.declare(&s, Box::from(a.clone()))?;
+                        fun_scope.declare(&s, Box::from(a.clone()))?;
                     } else {
                         return Err(super::InterpreterError::new("Invalid param type, must be identifier"));
                     }
                 }
-                dbg!(&global_scope);
-                let mut i = super::Interpreter::with_env(global_scope.clone());
-                let e = i.interpret(body.clone())?; 
-                dbg!(&e);
+                
+                let r = fun_scope.clone();
+                let mut i = super::Interpreter::with_env(r);
+                let e = match i.interpret(body.clone()) {
+                    Ok(ev) => ev,
+                    Err(super::InterpreterError { msg:_, returned}) => if returned.is_some() { returned.unwrap() } else { Expr::LiteralExpr(ExprLiteralValue::NilLiteral) }
+                };
                 Ok(e)
             }
             

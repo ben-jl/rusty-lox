@@ -20,27 +20,31 @@ impl ScopeEnvironment {
     }
 
     pub fn new_child(&mut self) -> () {
-        self.scopes.push(Scope::new(Some(self.scopes.len()-1)));
+
+        self.scopes.push(Scope::new(Some(self.current_idx)));
         self.previous_idx = self.current_idx;
         self.current_idx = self.scopes.len()-1;
+        
         ()
     }
 
     pub fn pop_scope(&mut self) -> super::Result<()> {
         let cs = &self.scopes[self.current_idx];
+        //dbg!(&cs);
         if let Some(px) = cs.parent_idx {
             let nxt_ix = px.clone();
             for i in self.scopes.iter_mut() {
                 let v = match i {
-                    Scope { parent_idx: Some(pi), variable_context: _} => pi >= &mut self.current_idx,
+                    Scope { parent_idx: Some(pi), variable_context: _} => pi >= dbg!(&mut self.current_idx),
                     _ => false
                 };
                 if v {
                     i.parent_idx = Some(i.parent_idx.unwrap() - 1);
                 }
             }
+            self.previous_idx = self.scopes[self.current_idx].parent_idx.unwrap_or(0);
             self.scopes.remove(self.current_idx);
-            self.previous_idx = self.current_idx;
+            
             self.current_idx = nxt_ix;
             Ok(())
         } else {
@@ -146,9 +150,9 @@ impl Scope {
 impl std::fmt::Display for Scope {
     
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> { 
-        writeln!(f,"Scope~{} [", self.parent_idx.map(|e| format!("{}", e)).unwrap_or("Root".to_string()))?;
+        write!(f,"Scope~{} [", self.parent_idx.map(|e| format!("{}", e)).unwrap_or("Root".to_string()))?;
         for i in &self.variable_context {
-            writeln!(f, "    ({}, {})", i.0, i.1)?;
+            write!(f, "({}, {}) ", i.0, i.1)?;
         }
         write!(f, "]")?;
         Ok(())
