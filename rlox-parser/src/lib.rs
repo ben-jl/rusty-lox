@@ -608,7 +608,7 @@ mod tests {
         let res = parser.parse().unwrap();
 
         let r = print(&res[0]);
-        assert_eq!("3.00 BangEqual \"bye now\"",r);
+        assert_eq!("3.00 BangEqual bye now",r);
     }
 
     #[test]

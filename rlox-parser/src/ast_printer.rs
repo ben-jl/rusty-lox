@@ -121,21 +121,3 @@ enum PrinterIntermediateResult<'a> {
     SubExpr(&'a Expr)
 }
 
-#[cfg(test)]
-mod ast_printer_tests {
-
-    #[test]
-    fn it_prints_basic_syntax_tree() {
-        let li = super::Expr::LiteralExpr(super::ExprLiteralValue::NumberLiteral(1.2));
-        let l = super::Expr::UnaryExpr {operator: super::Token::Plus, right: Box::from(li) };
-        let ri = super::Expr::LiteralExpr(super::ExprLiteralValue::StringLiteral("\"testing\"".to_string()));
-        let r = super::Expr::GroupingExpr(Box::from(ri));
-
-        let b = super::Expr::BinaryExpr { left: Box::from(l), operator: super::Token::Star, right: Box::from(r) };
-        
-
-        let res = super::print(&b);
-        println!("{}", res);
-        assert_eq!(r#"( Plus 1.20 )  Star  ( group "testing" ) "#,res);
-    }
-}
