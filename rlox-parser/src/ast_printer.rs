@@ -74,7 +74,8 @@ pub fn print(expr: &Expr) -> String {
                         expr_stack.push(PrinterIntermediateResult::PrintAction(" }".to_string()));
                     },
                     Expr::LogicalExpr { left: _, operator: _, right: _} => unimplemented!(),
-                    Expr::WhileLoop { condition: _, body: _ } => unimplemented!()
+                    Expr::WhileLoop { condition: _, body: _ } => unimplemented!(),
+                    _ => unimplemented!()
                 }
             },
             PrinterIntermediateResult::PrintAction(s) => fin_stack.push(s)

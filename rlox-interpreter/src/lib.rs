@@ -255,12 +255,25 @@ impl Interpreter {
                 }
 
                 Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
+            },
+            Expr::CallExpr { callee, paren, arguments } => {
+                let c = self.interpret(callee)?;
+                let mut resolved_args = Vec::new();
+                for a in arguments {
+                    let result = self.interpret(a)?;
+                    resolved_args.push(result);
+                }
+                unimplemented!()
+            },
+            Expr::FunctionExpr { name, params, body } => {
+                unimplemented!();
             }
         };
         Ok(v)
 
     }
 
+    
 }
 
 

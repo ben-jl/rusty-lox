@@ -52,6 +52,8 @@ impl Scope {
         self.environment_stack.pop_front();
         Ok(())
     }
+
+    
 }
 
 #[cfg(test)]
