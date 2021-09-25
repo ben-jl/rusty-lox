@@ -80,7 +80,7 @@ impl Display for Token {
      }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone, PartialEq)]
 pub enum Expr {
     BinaryExpr { left: Box<Expr>, operator: Token, right: Box<Expr> },
     GroupingExpr(Box<Expr>),
@@ -97,7 +97,7 @@ pub enum Expr {
     WhileLoop { condition: Box<Expr>, body: Box<Expr> }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone, PartialEq)]
 pub enum ExprLiteralValue {
     StringLiteral(String),
     NumberLiteral(f64),
@@ -123,4 +123,11 @@ impl Expr {
         let o = operator.clone();
         Expr::LogicalExpr { left: l, operator: o, right: r}
     }
+}
+
+impl Display for Expr {
+    
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> { 
+        write!(f, "{:?}", self)
+     }
 }

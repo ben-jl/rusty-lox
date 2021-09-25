@@ -17,20 +17,20 @@ use rlox_parser::ast_printer::print;
 
 pub type Result<B> = std::result::Result<B, InterpreterError>;
 mod environment;
-use environment::Environment;
+use environment::Scope;
 
 pub struct Interpreter {
     scanner : Scanner,
     parser : Parser,
-    environment: Environment
+    scope: Scope
 }
 
 impl Interpreter {
     pub fn default() -> Interpreter {
         let scanner = Scanner::new();
         let parser = Parser::new();
-        let environment = Environment::new_root_environment();
-        Interpreter { scanner, parser, environment }
+        let scope = Scope::new();
+        Interpreter { scanner, parser, scope }
     }
 
     pub fn execute_source<B>(&mut self, source: B) -> std::io::Result<()> where B : ToString {
@@ -42,7 +42,7 @@ impl Interpreter {
                 for e in exprs {
                     let ie = self.interpret(Box::from(e));
                     match &ie {
-                        Ok(cv) => if cv == &ComputedValue::NilValue { continue; } else { println!("{:?}", cv)},
+                        Ok(cv) => if cv == &Expr::LiteralExpr(ExprLiteralValue::NilLiteral) { continue; } else { println!("{:?}", cv)},
                         Err(e) => {return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, e.msg.clone()));}
                     }
                 }
@@ -76,7 +76,7 @@ impl Interpreter {
                                 match self.interpret(Box::from(expr)) {
                                     Err(e) => error!("{}", e.msg),
                                     Ok(v) => {
-                                        if v == ComputedValue::NilValue { continue;} else {println!("{}",v)};
+                                        if v == Expr::LiteralExpr(ExprLiteralValue::NilLiteral) { continue;} else {println!("{}",v)};
                                         println!("OK.")
                                     }
                                 }
@@ -95,22 +95,22 @@ impl Interpreter {
         Ok(())
     }
 
-    fn interpret(&mut self, expr: Box<Expr>) -> Result<ComputedValue> {
+    fn interpret(&mut self, expr: Box<Expr>) -> Result<Expr> {
         let v = match *expr {
-            Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b)) => ComputedValue::BooleanValue(b),
-            Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => ComputedValue::NilValue,
-            Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)) => ComputedValue::NumberValue(n),
-            Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s)) => ComputedValue::StringValue(s.clone()),
+            Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b)) => bool_literal(b),
+            Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => Expr::LiteralExpr(ExprLiteralValue::NilLiteral),
+            Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)) => Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)),
+            Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s)) => Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s.clone())),
             Expr::GroupingExpr(inner) => {
                 return self.interpret(inner)
             },
             Expr::UnaryExpr { operator, right} => {
                 let r = self.interpret(right)?;
                 match (&operator,&r) {
-                    (Token::Bang, ComputedValue::BooleanValue(b)) => ComputedValue::BooleanValue(!b),
-                    (Token::Bang, ComputedValue::NilValue) => ComputedValue::BooleanValue(true),
-                    (Token::Bang, _) => ComputedValue::BooleanValue(true),
-                    (Token::Minus, ComputedValue::NumberValue(n)) => ComputedValue::NumberValue(-1 as f64 * n),
+                    (Token::Bang, Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b))) => bool_literal(!b),
+                    (Token::Bang, Expr::LiteralExpr(ExprLiteralValue::NilLiteral)) => bool_literal(true),
+                    (Token::Bang, _) => bool_literal(true),
+                    (Token::Minus, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n))) => num_literal(-1 as f64 * n),
                     (Token::Minus, _) => return Err(InterpreterError::new(format!("Expected number, got {}", r))),
                     _ => return Err(InterpreterError::new(format!("Expected unary operator, got {:?}", operator)))
                 }
@@ -120,44 +120,44 @@ impl Interpreter {
                 let r = self.interpret(right)?;
 
                 match (&l, &operator, &r) {
-                    (ComputedValue::NumberValue(n), Token::Minus, ComputedValue::NumberValue(m)) => ComputedValue::NumberValue(n - m),
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::Minus, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => num_literal(n - m),
                     (_, Token::Minus, _) => return Err(InterpreterError::new(format!("Operator MINUS expects two numbers, got {:?} and {:?}", &l, &r))),
 
-                    (ComputedValue::NumberValue(n), Token::Plus, ComputedValue::NumberValue(m)) => ComputedValue::NumberValue(n + m),
-                    (ComputedValue::StringValue(s1), Token::Plus, ComputedValue::StringValue(s2)) => {
-                        ComputedValue::StringValue(format!(r#"{}{}"#, s1, s2))
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::Plus, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => num_literal(n + m),
+                    (Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s1)), Token::Plus, Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s2))) => {
+                        Expr::LiteralExpr(ExprLiteralValue::StringLiteral(format!(r#"{}{}"#, s1, s2)))
                     },
                     (_, Token::Plus, _) => return Err(InterpreterError::new(format!("Operator PLUS expects two numbers or two strings, got {:?} and {:?}", &l, &r))),
 
-                    (ComputedValue::NumberValue(n), Token::Slash, ComputedValue::NumberValue(m)) => if *m == 0 as f64 { return Err(InterpreterError::new("Divide by zero error")); } else { ComputedValue::NumberValue(n / m)},
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::Slash, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => if *m == 0 as f64 { return Err(InterpreterError::new("Divide by zero error")); } else { num_literal(n / m)},
                     (_, Token::Slash, _) => return Err(InterpreterError::new(format!("Operator SLASH expects two numbers, got {:?} and {:?}", &l, &r))),
 
-                    (ComputedValue::NumberValue(n), Token::Star, ComputedValue::NumberValue(m)) => ComputedValue::NumberValue(n * m),
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::Star, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => num_literal(n * m),
                     (_, Token::Star, _) => return Err(InterpreterError::new(format!("Operator STAR expects two numbers, got {:?} and {:?}", &l, &r))),
 
-                    (ComputedValue::NumberValue(n), Token::Greater, ComputedValue::NumberValue(m)) => ComputedValue::BooleanValue(n > m),
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::Greater, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => bool_literal(n > m),
                     (_, Token::Greater, _) => return Err(InterpreterError::new(format!("Operator GREATER expects two numbers, got {:?} and {:?}", &l, &r))),
 
-                    (ComputedValue::NumberValue(n), Token::GreaterEqual, ComputedValue::NumberValue(m)) => ComputedValue::BooleanValue(n >= m),
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::GreaterEqual, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => bool_literal(n >= m),
                     (_, Token::GreaterEqual, _) => return Err(InterpreterError::new(format!("Operator GREATEREQUAL expects two numbers, got {:?} and {:?}", &l, &r))),
 
-                    (ComputedValue::NumberValue(n), Token::Less, ComputedValue::NumberValue(m)) => ComputedValue::BooleanValue(n < m),
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::Less, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => bool_literal(n < m),
                     (_, Token::Less, _) => return Err(InterpreterError::new(format!("Operator LESS expects two numbers, got {:?} and {:?}", &l, &r))),
 
-                    (ComputedValue::NumberValue(n), Token::LessEqual, ComputedValue::NumberValue(m)) => ComputedValue::BooleanValue(n <= m),
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::LessEqual, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => bool_literal(n <= m),
                     (_, Token::LessEqual, _) => return Err(InterpreterError::new(format!("Operator LESSEQUAL expects two numbers, got {:?} and {:?}", &l, &r))),
 
-                    (ComputedValue::NumberValue(n), Token::BangEqual, ComputedValue::NumberValue(m)) => ComputedValue::BooleanValue(n != m),
-                    (ComputedValue::StringValue(s1), Token::BangEqual, ComputedValue::StringValue(s2)) => ComputedValue::BooleanValue(s1 != s2),
-                    (ComputedValue::BooleanValue(b1), Token::BangEqual, ComputedValue::BooleanValue(b2)) => ComputedValue::BooleanValue(b1 & b2),
-                    (ComputedValue::NilValue, Token::BangEqual, ComputedValue::NilValue) => ComputedValue::BooleanValue(false),
-                    (_, Token::BangEqual, _) => ComputedValue::BooleanValue(true),
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::BangEqual, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => bool_literal(n != m),
+                    (Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s1)), Token::BangEqual, Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s2))) => bool_literal(s1 != s2),
+                    (Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b1)), Token::BangEqual, Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b2))) => bool_literal(b1 & b2),
+                    (Expr::LiteralExpr(ExprLiteralValue::NilLiteral), Token::BangEqual, Expr::LiteralExpr(ExprLiteralValue::NilLiteral)) => bool_literal(false),
+                    (_, Token::BangEqual, _) => bool_literal(true),
 
-                    (ComputedValue::NumberValue(n), Token::EqualEqual, ComputedValue::NumberValue(m)) => ComputedValue::BooleanValue(n == m),
-                    (ComputedValue::StringValue(s1), Token::EqualEqual, ComputedValue::StringValue(s2)) => ComputedValue::BooleanValue(s1 == s2),
-                    (ComputedValue::BooleanValue(b1), Token::EqualEqual, ComputedValue::BooleanValue(b2)) => ComputedValue::BooleanValue(b1 == b2),
-                    (ComputedValue::NilValue, Token::EqualEqual, ComputedValue::NilValue) => ComputedValue::BooleanValue(true),
-                    (_, Token::EqualEqual, _) => ComputedValue::BooleanValue(false),
+                    (Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n)), Token::EqualEqual, Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(m))) => bool_literal(n == m),
+                    (Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s1)), Token::EqualEqual, Expr::LiteralExpr(ExprLiteralValue::StringLiteral(s2))) => bool_literal(s1 == s2),
+                    (Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b1)), Token::EqualEqual, Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b2))) => bool_literal(b1 == b2),
+                    (Expr::LiteralExpr(ExprLiteralValue::NilLiteral), Token::EqualEqual, Expr::LiteralExpr(ExprLiteralValue::NilLiteral)) => bool_literal(true),
+                    (_, Token::EqualEqual, _) => bool_literal(false),
 
                     _ => return Err(InterpreterError::new("not recognized"))
                 }
@@ -166,7 +166,7 @@ impl Interpreter {
                 let res = self.interpret(inner)?;
 
                 println!("{}", res);
-                ComputedValue::NilValue
+                Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
             },
             Expr::ExprStmt(inner) => {
                 let res = self.interpret(inner)?;
@@ -176,8 +176,8 @@ impl Interpreter {
                 let v = self.interpret(initializer)?;
                 match name {
                     Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
-                        self.environment.put(&s, v);
-                        ComputedValue::NilValue
+                        self.scope.declare(&s, Box::from(v))?;
+                        Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
                     },
                     _ => return Err(InterpreterError::new("var decl requires identifier"))
                 }
@@ -185,49 +185,50 @@ impl Interpreter {
             Expr::VariableExpr(identifier) => {
                 match identifier {
                     Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
-                        if let Some(v) = self.environment.get(&s) {
-                            v.clone()
+                        if let Some(v) = self.scope.get(&s) {
+                            let v1 = self.interpret(v)?;
+                            v1
                         } else {
-                            ComputedValue::NilValue
+                            Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
                         }
                     },
                     _ => return Err(InterpreterError::new("var lookup requires identifier"))
                 }
             },
             Expr::AssigmentExpr { name, value } => {
+                let v = self.interpret(value)?;
                 match name {
                     Token::Literal(LiteralTokenType::IdentifierLiteral(s)) => {
-                        let res = self.interpret(value)?;
-                        self.environment.assign(&s, res)?;
-                        ComputedValue::NilValue
+                        
+                        self.scope.assign(&s, Box::from(v))?;
+                        Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
                     },
                     _ => return Err(InterpreterError::new("expected assignment, got nothing"))
                 }
             },
             Expr::BlockStmt(decs) => {
-                self.environment = Environment::new_environment(Box::from(self.environment.clone()));
+                self.scope.create_child();
                 for stmt in decs {
                     self.interpret(stmt)?;
                 }
-                let previous = self.environment.pop_scope()?;
-                self.environment = previous;
-                ComputedValue::NilValue
+                self.scope.pop_scope()?;
+                Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
             },
             Expr::IfStmt { condition, then_branch, else_branch} => {
                 let condition_result = self.interpret(condition)?;
                 let _ = match condition_result {
-                    ComputedValue::BooleanValue(false) => self.interpret(else_branch),
-                    ComputedValue::NilValue => self.interpret(else_branch),
+                    Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)) => self.interpret(else_branch),
+                    Expr::LiteralExpr(ExprLiteralValue::NilLiteral) => self.interpret(else_branch),
                     _ => self.interpret(then_branch)
                 }?;
-                ComputedValue::NilValue
+                Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
             },
             Expr::LogicalExpr { left, operator, right } => {
                 let l = self.interpret(left)?;
                 match operator {
                     Token::And => {
                         match l {
-                            ComputedValue::NilValue | ComputedValue::BooleanValue(false) => l,
+                            Expr::LiteralExpr(ExprLiteralValue::NilLiteral) | Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)) => l,
                             _ => {
                                 let r = self.interpret(right)?;
                                 r
@@ -236,7 +237,7 @@ impl Interpreter {
                     },
                     Token::Or => {
                         match l {
-                            ComputedValue::NilValue | ComputedValue::BooleanValue(false) => {
+                            Expr::LiteralExpr(ExprLiteralValue::NilLiteral) | Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(false)) => {
                                 let r = self.interpret(right)?;
                                 r
                             },
@@ -248,12 +249,12 @@ impl Interpreter {
             },
             Expr::WhileLoop { condition, body } => {
                 let mut cond_val = self.interpret(Box::from(condition.clone()))?;
-                while cond_val != ComputedValue::NilValue && cond_val != ComputedValue::BooleanValue(false) {
+                while cond_val != Expr::LiteralExpr(ExprLiteralValue::NilLiteral) && cond_val != bool_literal(false) {
                     self.interpret(Box::from(body.clone()))?;
                     cond_val = self.interpret(Box::from(condition.clone()))?;
                 }
 
-                ComputedValue::NilValue
+                Expr::LiteralExpr(ExprLiteralValue::NilLiteral)
             }
         };
         Ok(v)
@@ -263,27 +264,14 @@ impl Interpreter {
 }
 
 
-#[derive(Debug, PartialEq, Clone)]
-enum ComputedValue {
-    BooleanValue(bool),
-    NumberValue(f64),
-    StringValue(String),
-    NilValue
+fn num_literal(n:f64) -> Expr {
+    Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(n))
 }
 
-impl Display for ComputedValue {
-    
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> { 
-        let stringly = match &self {
-            ComputedValue::BooleanValue(t) => format!("{}", t),
-            ComputedValue::StringValue(s) => format!("{}", s),
-            ComputedValue::NumberValue(n) => format!("{:.2}", n),
-            ComputedValue::NilValue => String::from("nil")
-        };
-        write!(f, "{}", stringly)?;
-        Ok(())
-     }
+fn bool_literal(b:bool) -> Expr {
+    Expr::LiteralExpr(ExprLiteralValue::BooleanLiteral(b))
 }
+
 fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
     let mut handle = stdin.lock();
     let mut buffer = String::new();
@@ -296,7 +284,7 @@ fn read_line_from_stdin(stdin: &std::io::Stdin) -> std::io::Result<String> {
 
 
 #[derive(Debug)]
-struct InterpreterError {
+pub struct InterpreterError {
     msg: String
 }
 

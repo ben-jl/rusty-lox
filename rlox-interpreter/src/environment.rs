@@ -1,81 +1,78 @@
-use super::{ComputedValue, Token};
+use std::collections::VecDeque;
+use crate::InterpreterError;
+use rlox_contract::Expr;
+use super::{Token};
 use std::collections::HashMap;
 use log::{debug,trace,error};
+
 #[derive(Debug,Clone)]
-pub struct Environment {
-    variables: HashMap<String,ComputedValue>,
-    parent_scope: Option<Box<Environment>>
+pub struct Scope {
+    environment_stack: VecDeque<HashMap<String, Box<Expr>>>
 }
 
-impl Environment {
-    pub fn new_root_environment() -> Environment {
-        Environment { variables: HashMap::new(), parent_scope: None }
+impl Scope {
+    pub fn new() -> Scope {
+        Scope { environment_stack: VecDeque::from(vec![HashMap::new()]) }
     }
 
-    pub fn new_environment(parent_env: Box<Environment>) -> Environment {
-        let parent_scope = Some(parent_env);
-        Environment { variables: HashMap::new(), parent_scope }
-    }
-
-    pub fn get(&self, identifier: &str) -> Option<&ComputedValue> {
-        if let Some(v) = self.variables.get(identifier) {
-            Some(v)
-        } else {
-            if let Some(p) = &self.parent_scope {
-                p.get(identifier)
-            } else {
-                None
-            }
-        }
-    } 
-
-    pub fn put(&mut self, identifier: &str, value: ComputedValue) -> () {
-        self.variables.insert(identifier.to_string(),value);
-    }
-
-    pub fn assign(&mut self, identifier: &str, value: ComputedValue) -> super::Result<()> {
-        if let Some(_) = self.variables.get(identifier) {
-            self.put(identifier,value);
-            Ok(())
-        } 
-        else {
-            if let Some(pe) = &mut self.parent_scope {
-                pe.assign(identifier, value)?;
-                Ok(())
-            } else {
-                Err(super::InterpreterError::new("Attempted to assign value to undeclared identifier"))
-
-            }
-        }
+    pub fn create_child(&mut self) -> () {
+        self.environment_stack.push_front(HashMap::new())
         
     }
 
-    pub fn pop_scope(&mut self) -> super::Result<Environment> {
-        if let Some(pe) = &self.parent_scope {
-            Ok(*pe.clone())
+    pub fn declare(&mut self, identifier: &str, expr: Box<Expr>) -> super::Result<&mut Scope> {
+        if self.environment_stack[0].contains_key(identifier) {
+            Err(InterpreterError::new("Variable already declared"))
         } else {
-            Err(super::InterpreterError::new("Cannot pop root scope"))
+            self.environment_stack[0].insert(identifier.to_string(), expr);
+            Ok(self)
         }
+    }
+
+    pub fn get(&self, identifier: &str) -> Option<Box<Expr>> {
+        for hm in &self.environment_stack {
+            if hm.contains_key(identifier) {
+                return hm.get(identifier).map(|e| e.clone());
+            }
+        }
+        None
+    }
+
+    pub fn assign(&mut self, identifier: &str, value: Box<Expr>) -> super::Result<()> {
+        for hm in self.environment_stack.iter_mut() {
+            if hm.contains_key(identifier) {
+                hm.insert(identifier.to_string(), value);
+                return Ok(())
+            }
+        }
+        Err(InterpreterError::new(format!("{:?} not declared", identifier)))
+    }
+
+    pub fn pop_scope(&mut self) -> super::Result<()> {
+        self.environment_stack.pop_front();
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::ExprLiteralValue;
+    use super::*;
+
     #[test]
-    fn it_gets_variable_from_same_scope() {
-        let mut env = super::Environment::new_root_environment();
-        env.put("test", super::ComputedValue::NumberValue(2.1));
-        let res = env.get("test").unwrap();
-        assert_eq!(&super::ComputedValue::NumberValue(2.1), res);
+    fn it_puts_and_returns_variable_on_single_scope() {
+        let mut s = Scope::new();
+        s.declare("test", Box::from(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(1.1)))).expect("failed to declare");
+        let r = s.get("test");
+        assert_eq!(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(1.1)), *r.unwrap());
     }
 
     #[test]
-    fn it_gets_variable_from_parent_scope() {
-        let mut env = super::Environment::new_root_environment();
-        env.put("hello", super::ComputedValue::NumberValue(2.1));
-
-        let mut child_env = super::Environment::new_environment(Box::from(env));
-        let res = child_env.get("hello").unwrap();
-        assert_eq!(&super::ComputedValue::NumberValue(2.1), res);
+    fn it_puts_on_root_and_gets_from_child() {
+        let mut s = Scope::new();
+        s.declare("test", Box::from(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(1.1)))).expect("failed to declare");
+        s.create_child();
+        let r = s.get("test");
+        assert_eq!(Expr::LiteralExpr(ExprLiteralValue::NumberLiteral(1.1)), *r.unwrap());
     }
 }
